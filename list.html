@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>1.25x Auto Scanner (No Server)</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #0056b3; margin-top: 0;}
+        p.time { text-align: center; color: #666; font-size: 14px; margin-bottom: 20px;}
+        
+        .cors-warning { background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; text-align: center; font-weight: bold; margin-bottom: 20px; border: 1px solid #ffeeba;}
+        
+        .alert-box { padding: 15px; background-color: #e2e3e5; border-left: 5px solid #6c757d; border-radius: 4px; margin-bottom: 10px; font-weight: bold;}
+        .alert-green { background-color: #d4edda; border-left-color: #28a745; color: #155724; }
+        .alert-red { background-color: #f8d7da; border-left-color: #dc3545; color: #721c24; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; text-align: center; }
+        th, td { border: 1px solid #ddd; padding: 12px; }
+        th { background-color: #004085; color: white; }
+        .buy-signal { background-color: #28a745; color: white; font-weight: bold; border-radius: 4px; padding: 4px 8px;}
+        .sell-signal { background-color: #dc3545; color: white; font-weight: bold; border-radius: 4px; padding: 4px 8px;}
+        .wait-signal { color: #6c757d; font-weight: bold; }
+        
+        .loader { font-weight: bold; color: #007bff; text-align: center; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🚀 Live 1.25x Scanner Dashboard</h2>
+        <div class="cors-warning">
+            ⚠️ IMPORTANT: Please ensure you have a "CORS Unblocker" Chrome Extension turned ON, otherwise NSE will block the data.
+        </div>
+        
+        <p class="time">Last Scanned: <b id="last-time">Scanning now...</b> (Auto-refreshes every 60s)</p>
+
+        <h3>🎯 Stocks Passing Your Rule</h3>
+        <div id="alerts-container">
+            <div class="loader">Scanning market data... Please wait.</div>
+        </div>
+
+        <h3>📊 Detailed Scan Report</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Stock</th>
+                    <th>Nearest Expiry</th>
+                    <th>Signal</th>
+                    <th>Call Vol</th>
+                    <th>Put Vol</th>
+                    <th>Call OI</th>
+                    <th>Put OI</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                </tbody>
+        </table>
+    </div>
+
+    <script>
+        const STOCKS = ["RELIANCE", "HDFCBANK", "TATAMOTORS", "INFY", "TCS"];
+        const MULTIPLIER = 1.25;
+
+        // Number formatter for commas (e.g., 1,00,000)
+        const fmt = (num) => num.toLocaleString('en-IN');
+
+        async function fetchStockData(stock) {
+            // NSE Option chain API for Equities
+            const url = `https://www.nseindia.com/api/option-chain-equities?symbol=${stock}`;
+            
+            try {
+                // Fetching directly via browser
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                
+                const json = await response.json();
+                
+                if (!json.records || !json.records.expiryDates || json.records.expiryDates.length === 0) {
+                    return { stock, status: "ERROR", msg: "No Expiry Data" };
+                }
+
+                // 1. Get Nearest Expiry Date
+                const nearestExpiry = json.records.expiryDates[0];
+                
+                // 2. Filter data for nearest expiry only
+                const currentExpiryData = json.records.data.filter(row => row.expiryDate === nearestExpiry);
+
+                // 3. Calculate Grand Totals
+                let t_c_vol = 0, t_c_oi = 0, t_c_chg_oi = 0;
+                let t_p_vol = 0, t_p_oi = 0, t_p_chg_oi = 0;
+
+                currentExpiryData.forEach(row => {
+                    if (row.CE) {
+                        t_c_vol += row.CE.totalTradedVolume || 0;
+                        t_c_oi += row.CE.openInterest || 0;
+                        t_c_chg_oi += row.CE.changeinOpenInterest || 0;
+                    }
+                    if (row.PE) {
+                        t_p_vol += row.PE.totalTradedVolume || 0;
+                        t_p_oi += row.PE.openInterest || 0;
+                        t_p_chg_oi += row.PE.changeinOpenInterest || 0;
+                    }
+                });
+
+                if (t_c_vol === 0 || t_p_vol === 0) {
+                    return { stock, status: "WAIT", msg: "No liquidity" };
+                }
+
+                // 4. Apply your 1.25x Logic
+                let signal = "WAIT";
+                let alertMessage = null;
+
+                // BULLISH
+                if (t_p_vol >= (MULTIPLIER * t_c_vol) && t_p_oi >= (MULTIPLIER * t_c_oi) && t_p_chg_oi > 0 && t_p_chg_oi >= (MULTIPLIER * t_c_chg_oi)) {
+                    signal = "BUY";
+                    alertMessage = `🟢 ${stock} (${nearestExpiry}): BULLISH TREND! Puts are ${MULTIPLIER}x heavier than Calls.`;
+                }
+                // BEARISH
+                else if (t_c_vol >= (MULTIPLIER * t_p_vol) && t_c_oi >= (MULTIPLIER * t_p_oi) && t_c_chg_oi > 0 && t_c_chg_oi >= (MULTIPLIER * t_p_chg_oi)) {
+                    signal = "SELL";
+                    alertMessage = `🔴 ${stock} (${nearestExpiry}): BEARISH TREND! Calls are ${MULTIPLIER}x heavier than Puts.`;
+                }
+
+                return {
+                    stock, expiry: nearestExpiry, signal, alertMessage,
+                    c_vol: t_c_vol, p_vol: t_p_vol, c_oi: t_c_oi, p_oi: t_p_oi
+                };
+
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                return { stock, status: "ERROR", msg: "CORS Blocked or API Down" };
+            }
+        }
+
+        async function runScanner() {
+            const tableBody = document.getElementById("table-body");
+            const alertsContainer = document.getElementById("alerts-container");
+            const timeLabel = document.getElementById("last-time");
+
+            timeLabel.innerText = "Scanning now...";
+            tableBody.innerHTML = "";
+            alertsContainer.innerHTML = "";
+            
+            let passedCount = 0;
+
+            for (const stock of STOCKS) {
+                const data = await fetchStockData(stock);
+                
+                // Add to Table
+                let signalHtml = `<span class="wait-signal">WAIT</span>`;
+                if (data.status === "ERROR") signalHtml = `<span class="val-red">ERROR/CORS</span>`;
+                else if (data.signal === "BUY") signalHtml = `<span class="buy-signal">BUY (BULLISH)</span>`;
+                else if (data.signal === "SELL") signalHtml = `<span class="sell-signal">SELL (BEARISH)</span>`;
+
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td><b>${data.stock}</b></td>
+                    <td>${data.expiry || '-'}</td>
+                    <td>${signalHtml}</td>
+                    <td>${data.c_vol ? fmt(data.c_vol) : '-'}</td>
+                    <td>${data.p_vol ? fmt(data.p_vol) : '-'}</td>
+                    <td>${data.c_oi ? fmt(data.c_oi) : '-'}</td>
+                    <td>${data.p_oi ? fmt(data.p_oi) : '-'}</td>
+                `;
+                tableBody.appendChild(tr);
+
+                // Add to Alerts if Passed
+                if (data.alertMessage) {
+                    passedCount++;
+                    const alertDiv = document.createElement("div");
+                    alertDiv.className = `alert-box ${data.signal === 'BUY' ? 'alert-green' : 'alert-red'}`;
+                    alertDiv.innerText = data.alertMessage;
+                    alertsContainer.appendChild(alertDiv);
+                }
+
+                // Add slight delay between requests to respect NSE servers
+                await new Promise(r => setTimeout(r, 1000));
+            }
+
+            if (passedCount === 0) {
+                alertsContainer.innerHTML = `<div class="alert-box">No stocks are matching the ${MULTIPLIER}x rule right now.</div>`;
+            }
+
+            const now = new Date();
+            timeLabel.innerText = now.toLocaleTimeString();
+        }
+
+        // Start scanning immediately, then every 60 seconds
+        runScanner();
+        setInterval(runScanner, 60000);
+
+    </script>
+</body>
+</html>
