@@ -52,12 +52,16 @@ HTML_TEMPLATE = """
 
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { border: 1px solid #ddd; padding: 10px 8px; text-align: center; font-size: 14px; }
-        th { background-color: #004085; color: white; }
+        th { background-color: #004085; color: white; position: sticky; top: 0; z-index: 2; }
         .top-strikes-hdr { background-color: #17a2b8; color: white; }
         .BUY { color: green; font-weight: bold; } .SELL { color: red; font-weight: bold; }
         
         .strike-info { font-weight: bold; color: #0056b3; background-color: #f8f9fa; }
         .strike-info-put { font-weight: bold; color: #d35400; background-color: #f8f9fa; }
+        
+        /* NEW STYLES FOR HIGHLIGHTING */
+        tr.highlight-row td { background-color: #fff8e1 !important; }
+        mark { background-color: #ffeb3b; padding: 3px 6px; border-radius: 4px; font-weight: 900; border: 1px solid #d39e00; color: #000; box-shadow: 0 0 5px rgba(255,193,7,0.5);}
         
         #status { font-weight: bold; color: #d35400; font-size: 16px; margin: 15px 0 5px 0; }
         #autoScanLabel { font-weight: bold; color: #6c757d; font-size: 14px; margin-bottom: 15px; }
@@ -223,7 +227,35 @@ HTML_TEMPLATE = """
             }
 
             dataArray.forEach(row => {
+                let hl = row.highlight_data;
+                let rowClass = hl ? "highlight-row" : "";
+                
+                // Construct Call Strikes string with highlight logic
+                let c_vol = row.strike_c_vol;
+                let c_oi = row.strike_c_oi;
+                let c_chg = row.strike_c_chg;
+                
+                if (hl && hl.side === 'C') {
+                    if (hl.type === 'vol') c_vol = `<mark>${c_vol}</mark>`;
+                    else if (hl.type === 'oi') c_oi = `<mark>${c_oi}</mark>`;
+                    else if (hl.type === 'chg') c_chg = `<mark>${c_chg}</mark>`;
+                }
+                let call_strikes = `${c_vol} / ${c_oi} / ${c_chg}`;
+                
+                // Construct Put Strikes string with highlight logic
+                let p_vol = row.strike_p_vol;
+                let p_oi = row.strike_p_oi;
+                let p_chg = row.strike_p_chg;
+                
+                if (hl && hl.side === 'P') {
+                    if (hl.type === 'vol') p_vol = `<mark>${p_vol}</mark>`;
+                    else if (hl.type === 'oi') p_oi = `<mark>${p_oi}</mark>`;
+                    else if (hl.type === 'chg') p_chg = `<mark>${p_chg}</mark>`;
+                }
+                let put_strikes = `${p_vol} / ${p_oi} / ${p_chg}`;
+
                 let tr = document.createElement('tr');
+                tr.className = rowClass;
                 tr.innerHTML = `
                     <td><b>${row.stock}</b></td>
                     <td><b>₹${row.underlying}</b></td>
@@ -232,11 +264,11 @@ HTML_TEMPLATE = """
                     <td>${row.c_vol}</td>
                     <td>${row.c_oi}</td>
                     <td>${row.c_chg}</td>
-                    <td class="strike-info">${row.strike_c_vol} / ${row.strike_c_oi} / ${row.strike_c_chg}</td>
+                    <td class="strike-info">${call_strikes}</td>
                     <td>${row.p_chg}</td>
                     <td>${row.p_oi}</td>
                     <td>${row.p_vol}</td>
-                    <td class="strike-info-put">${row.strike_p_vol} / ${row.strike_p_oi} / ${row.strike_p_chg}</td>
+                    <td class="strike-info-put">${put_strikes}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -297,8 +329,6 @@ def scan_batch():
         try:
             json_response = json.loads(text2)
             data = json_response.get('records', {}).get('data', [])
-            
-            # --- EXTRACT CURRENT STOCK PRICE (LTP) ---
             underlying_price = json_response.get('records', {}).get('underlyingValue', 0)
         except Exception as e:
             continue
@@ -361,17 +391,48 @@ def scan_batch():
                         max_p_chg = pe.get('changeinOpenInterest', 0)
                         strike_p_chg = strike
             
-            # Append complete data including Underlying Price
+            # --- NEW: 5% PROXIMITY HIGHLIGHT LOGIC ---
+            highlight_data = None
+            if underlying_price > 0:
+                # Create a list of available valid strikes
+                candidates = []
+                if strike_c_vol != "-": candidates.append(('C', 'vol', strike_c_vol))
+                if strike_c_oi != "-": candidates.append(('C', 'oi', strike_c_oi))
+                if strike_c_chg != "-": candidates.append(('C', 'chg', strike_c_chg))
+                if strike_p_vol != "-": candidates.append(('P', 'vol', strike_p_vol))
+                if strike_p_oi != "-": candidates.append(('P', 'oi', strike_p_oi))
+                if strike_p_chg != "-": candidates.append(('P', 'chg', strike_p_chg))
+                
+                min_diff = float('inf')
+                best_candidate = None
+                
+                # Find the one strike with the absolute minimum difference
+                for side, stype, val in candidates:
+                    diff = abs(val - underlying_price) / underlying_price * 100
+                    # Ensures we pick strictly "only 1" even if there are ties
+                    if diff < min_diff:
+                        min_diff = diff
+                        best_candidate = (side, stype, val)
+                
+                # Check if the shortest difference is within max 5%
+                if best_candidate and min_diff <= 5.0:
+                    highlight_data = {
+                        'side': best_candidate[0],
+                        'type': best_candidate[1]
+                    }
+
+            # Append complete data including Highlight info
             passed.append({
                 "stock": stock, 
-                "underlying": underlying_price, # <-- New Data Added Here
+                "underlying": underlying_price, 
                 "signal": signal, 
                 "pcr": pcr,
                 "c_vol": f"{t_c_vol:,}", "c_oi": f"{t_c_oi:,}", "c_chg": f"{t_c_chg:,}",
                 "strike_c_vol": strike_c_vol, "strike_c_oi": strike_c_oi, "strike_c_chg": strike_c_chg,
                 "p_chg": f"{t_p_chg:,}", "p_oi": f"{t_p_oi:,}", "p_vol": f"{t_p_vol:,}",
                 "strike_p_vol": strike_p_vol, "strike_p_oi": strike_p_oi, "strike_p_chg": strike_p_chg,
-                "raw_total_vol": total_activity_vol 
+                "raw_total_vol": total_activity_vol,
+                "highlight_data": highlight_data # <-- Passes highlight info to HTML
             })
         
         time.sleep(1)
