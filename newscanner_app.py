@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, redirect, url_for
+from flask import Flask, render_template_string, request, jsonify
 from curl_cffi import requests
 from datetime import datetime
 import re
@@ -6,7 +6,30 @@ import json
 import time
 
 app = Flask(__name__)
-STOCKS_TO_SCAN = ["RELIANCE", "HDFCBANK", "TMPV", "INFY", "TCS"]
+
+STOCKS_TO_SCAN = [
+  "360ONE", "ABB", "ABCAPITAL", "ADANIENSOL", "ADANIENT", "ADANIGREEN", "ADANIPORTS", "ADANIPOWER", "ALKEM", "AMBER", 
+  "AMBUJACEM", "ANGELONE", "APLAPOLLO", "APOLLOHOSP", "ASHOKLEY", "ASIANPAINT", "ASTRAL", "AUBANK", "AUROPHARMA", 
+  "AXISBANK", "BAJAJ-AUTO", "BAJAJFINSV", "BAJAJHLDNG", "BAJFINANCE", "BANDHANBNK", "BANKBARODA", "BANKINDIA", "BDL", 
+  "BEL", "BHARATFORG", "BHARTIARTL", "BHEL", "BIOCON", "BLUESTARCO", "BOSCHLTD", "BPCL", "BRITANNIA", "BSE", "CAMS", 
+  "CANBK", "CDSL", "CGPOWER", "CHOLAFIN", "CIPLA", "COALINDIA", "COCHINSHIP", "COFORGE", "COLPAL", "CONCOR", "CROMPTON", 
+  "CUMMINSIND", "DABUR", "DALBHARAT", "DELHIVERY", "DIVISLAB", "DIXON", "DLF", "DMART", "DRREDDY", "EICHERMOT", 
+  "ETERNAL", "EXIDEIND", "FEDERALBNK", "FORCEMOT", "FORTIS", "GAIL", "GLENMARK", "GMRAIRPORT", "GODFRYPHLP", "GODREJCP", 
+  "GODREJPROP", "GRASIM", "GVT&D", "HAL", "HAVELLS", "HCLTECH", "HDFCAMC", "HDFCBANK", "HDFCLIFE", "HEROMOTOCO", 
+  "HINDALCO", "HINDPETRO", "HINDUNILVR", "HINDZINC", "HYUNDAI", "ICICIBANK", "ICICIGI", "ICICIPRULI", "IDEA", 
+  "IDFCFIRSTB", "IEX", "INDHOTEL", "INDIANB", "INDIGO", "INDUSINDBK", "INDUSTOWER", "INFY", "INOXWIND", "IOC", "IREDA", 
+  "IRFC", "ITC", "JINDALSTEL", "JIOFIN", "JSWENERGY", "JSWSTEEL", "JUBLFOOD", "KALYANKJIL", "KAYNES", "KEI", "KFINTECH", 
+  "KOTAKBANK", "KPITTECH", "LAURUSLABS", "LICHSGFIN", "LICI", "LODHA", "LT", "LTF", "LTM", "LUPIN", "M&M", "MANAPPURAM", 
+  "MANKIND", "MARICO", "MARUTI", "MAXHEALTH", "MAZDOCK", "MCX", "MFSL", "MOTHERSON", "MOTILALOFS", "MPHASIS", 
+  "MUTHOOTFIN", "NAM-INDIA", "NATIONALUM", "NAUKRI", "NBCC", "NESTLEIND", "NHPC", "NMDC", "NTPC", "NUVAMA", "NYKAA", 
+  "OBEROIRLTY", "OFSS", "OIL", "ONGC", "PAGEIND", "PATANJALI", "PAYTM", "PERSISTENT", "PETRONET", "PFC", "PGEL", 
+  "PHOENIXLTD", "PIDILITIND", "PIIND", "PNB", "PNBHOUSING", "POLICYBZR", "POLYCAB", "POWERGRID", "POWERINDIA", 
+  "PREMIERENE", "PRESTIGE", "RADICO", "RBLBANK", "RECLTD", "RELIANCE", "RVNL", "SAIL", "SAMMAANCAP", "SBICARD", 
+  "SBILIFE", "SBIN", "SHREECEM", "SHRIRAMFIN", "SIEMENS", "SOLARINDS", "SONACOMS", "SRF", "SUNPHARMA", "SUPREMEIND", 
+  "SUZLON", "SWIGGY", "TATACONSUM", "TATAELXSI", "TATAPOWER", "TATASTEEL", "TCS", "TECHM", "TIINDIA", "TITAN", "TMPV", 
+  "TORNTPHARM", "TRENT", "TVSMOTOR", "ULTRACEMCO", "UNIONBANK", "UNITDSPR", "UNOMINDA", "UPL", "VBL", "VEDL", "VMM", 
+  "VOLTAS", "WAAREEENER", "WIPRO", "YESBANK", "ZYDUSLIFE"
+]
 session = requests.Session(impersonate="chrome120")
 
 # --- HTML TEMPLATE ---
@@ -17,46 +40,164 @@ HTML_TEMPLATE = """
     <title>Stock Scanner Dashboard</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f4f4f4; }
-        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .container { max-width: 1100px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .header-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #e9ecef; padding: 15px; border-radius: 6px; }
         .btn-refresh { padding: 12px 25px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .btn-refresh:disabled { background: #6c757d; cursor: not-allowed; }
+        
+        .search-box { padding: 10px; font-size: 15px; width: 250px; border: 1px solid #ccc; border-radius: 5px; outline: none; }
+        .search-box:disabled { background-color: #d6d8db; cursor: not-allowed; opacity: 0.6; }
+        
+        .count-badge { background: #ffc107; color: #000; padding: 6px 15px; border-radius: 20px; font-size: 18px; margin-left: 10px; font-weight: bold; border: 1px solid #e0a800; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
         th { background-color: #004085; color: white; }
         .BUY { color: green; font-weight: bold; } .SELL { color: red; font-weight: bold; }
+        #status { font-weight: bold; color: #d35400; font-size: 16px; margin: 15px 0; }
+        .loader { display: inline-block; margin-left: 10px; width: 16px; height: 16px; border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle;}
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>🎯 Ideal Strike Price Sniper</h2>
-        <form action="/refresh" method="POST">
-            <button class="btn-refresh">Refresh Scan Data</button>
-        </form>
-        <p>Last Scanned: {{ last_scan_time }}</p>
+        <h2>🎯 Stock Scanner Dashboard</h2>
+        <button id="scanBtn" class="btn-refresh" onclick="startScan()">Refresh Scan Data</button>
+        <div id="status">Waiting to start...</div>
 
-        <h3>Stocks Passing Rule</h3>
-        <table>
-            <tr>
-                <th>Stock</th><th>Signal</th><th>PCR</th>
-                <th>Call Vol</th><th>Call OI</th><th>Call Chg OI</th>
-                <th>Put Vol</th><th>Put OI</th><th>Put Chg OI</th>
-            </tr>
-            {% for row in passed_stocks %}
-            <tr>
-                <td><b>{{ row.stock }}</b></td>
-                <td class="{{ row.signal }}">{{ row.signal }}</td>
-                <td>{{ row.pcr }}</td>
-                <td>{{ row.c_vol }}</td><td>{{ row.c_oi }}</td><td>{{ row.c_chg }}</td>
-                <td>{{ row.p_vol }}</td><td>{{ row.p_oi }}</td><td>{{ row.p_chg }}</td>
-            </tr>
-            {% endfor %}
+        <div class="header-controls">
+            <h3 style="margin: 0;">Stocks Passing Rule: <span id="passCount" class="count-badge">0</span></h3>
+            <input type="text" id="searchInput" class="search-box" placeholder="🔍 Search Symbol..." disabled onkeyup="filterTable()">
+        </div>
+
+        <table id="resultTable">
+            <thead>
+                <tr>
+                    <th>Stock</th><th>Signal</th><th>PCR</th>
+                    <th>Call Vol</th><th>Call OI</th><th>Call Chg OI</th>
+                    <th>Put Vol</th><th>Put OI</th><th>Put Chg OI</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
         </table>
     </div>
+
+    <script>
+        let currentBatch = 0;
+        let totalStocks = {{ total_stocks }};
+        let isScanning = false;
+        let allPassedStocks = []; 
+
+        window.onload = function() {
+            if (!sessionStorage.getItem('hasRunBefore')) {
+                sessionStorage.setItem('hasRunBefore', 'true');
+                startScan();
+            } else {
+                document.getElementById('status').innerHTML = "Click <b>Refresh Scan Data</b> to start scanning.";
+            }
+        };
+
+        async function startScan() {
+            if (isScanning) return;
+            isScanning = true;
+            currentBatch = 0;
+            allPassedStocks = []; 
+            
+            // Disable buttons and search bar at start
+            document.getElementById('scanBtn').disabled = true;
+            let searchInput = document.getElementById('searchInput');
+            searchInput.value = "";
+            searchInput.disabled = true;
+            searchInput.placeholder = "Wait for scan to finish...";
+            
+            updateCount(0);
+            renderTable(allPassedStocks); 
+            await fetchNextBatch();
+        }
+
+        async function fetchNextBatch() {
+            let startIdx = currentBatch * 20;
+            let endIdx = Math.min(startIdx + 20, totalStocks);
+            
+            document.getElementById('status').innerHTML = `Scanning batch ${currentBatch + 1} (Stocks ${startIdx + 1} to ${endIdx} of ${totalStocks})... <div class="loader"></div>`;
+            
+            try {
+                let response = await fetch('/scan_batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ batch: currentBatch })
+                });
+                
+                let data = await response.json();
+                
+                // Add new data to global array
+                allPassedStocks = allPassedStocks.concat(data.passed);
+                
+                // Sorting array by Highest Volume LIVE during scan as well
+                allPassedStocks.sort((a, b) => Number(b.raw_total_vol) - Number(a.raw_total_vol));
+                
+                updateCount(allPassedStocks.length);
+                renderTable(allPassedStocks); 
+
+                if (data.is_last) {
+                    // SCAN COMPLETION LOGIC
+                    document.getElementById('status').innerHTML = `<span style="color:green;">✅ Scan Complete! Finished scanning ${totalStocks} stocks. Sorted by Highest Volume.</span>`;
+                    document.getElementById('scanBtn').disabled = false;
+                    isScanning = false;
+                    
+                    // Enable Search Bar ONLY when scan is 100% finished
+                    let searchInput = document.getElementById('searchInput');
+                    searchInput.disabled = false;
+                    searchInput.placeholder = "🔍 Search Symbol...";
+                    
+                } else {
+                    currentBatch++;
+                    fetchNextBatch(); 
+                }
+            } catch (error) {
+                document.getElementById('status').innerHTML = `<span style="color:red;">❌ Network Error occurred. Scan paused.</span>`;
+                document.getElementById('scanBtn').disabled = false;
+                isScanning = false;
+            }
+        }
+
+        function renderTable(dataArray) {
+            let tbody = document.getElementById('resultTable').querySelector('tbody');
+            tbody.innerHTML = '';
+            
+            if(dataArray.length === 0 && !isScanning && currentBatch > 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="color:gray;">No stocks matched the 1.25x criteria.</td></tr>';
+                return;
+            }
+
+            dataArray.forEach(row => {
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><b>${row.stock}</b></td>
+                    <td class="${row.signal}">${row.signal}</td>
+                    <td>${row.pcr}</td>
+                    <td>${row.c_vol}</td><td>${row.c_oi}</td><td>${row.c_chg}</td>
+                    <td>${row.p_vol}</td><td>${row.p_oi}</td><td>${row.p_chg}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filterTable() {
+            let query = document.getElementById('searchInput').value.toUpperCase().trim();
+            let filtered = allPassedStocks.filter(row => row.stock.includes(query));
+            renderTable(filtered);
+            updateCount(filtered.length);
+        }
+
+        function updateCount(count) {
+            document.getElementById('passCount').innerText = count;
+        }
+    </script>
 </body>
 </html>
 """
-
-# Global Storage
-last_scan_data = {"time": "Never", "passed": []}
 
 def fetch_nse_data(url):
     headers = {"Accept": "*/*", "Referer": "https://www.nseindia.com/"}
@@ -66,12 +207,25 @@ def fetch_nse_data(url):
         return response.status_code, response.text
     except: return 500, ""
 
-def perform_scan():
-    multiplyNo = 1.25
+@app.route('/')
+def index():
+    return render_template_string(HTML_TEMPLATE, total_stocks=len(STOCKS_TO_SCAN))
+
+@app.route('/scan_batch', methods=['POST'])
+def scan_batch():
+    batch_idx = request.json.get('batch', 0)
+    batch_size = 20
+    
+    start = batch_idx * batch_size
+    end = start + batch_size
+    chunk = STOCKS_TO_SCAN[start:end]
+    
     passed = []
+    multiplyNo = 2
     today = datetime.today().date()
 
-    for stock in STOCKS_TO_SCAN:
+    for stock in chunk:
+        print(f"Scanning {stock}...")
         status1, text1 = fetch_nse_data(f"https://www.nseindia.com/api/option-chain-contract-info?symbol={stock}")
         if status1 != 200: continue
         
@@ -84,23 +238,22 @@ def perform_scan():
         
         data = json.loads(text2).get('records', {}).get('data', [])
         
-        # Calculate Totals
         t_c_vol = sum(r.get('CE', {}).get('totalTradedVolume', 0) for r in data)
         t_c_oi = sum(r.get('CE', {}).get('openInterest', 0) for r in data)
         t_c_chg = sum(r.get('CE', {}).get('changeinOpenInterest', 0) for r in data)
+        
         t_p_vol = sum(r.get('PE', {}).get('totalTradedVolume', 0) for r in data)
         t_p_oi = sum(r.get('PE', {}).get('openInterest', 0) for r in data)
         t_p_chg = sum(r.get('PE', {}).get('changeinOpenInterest', 0) for r in data)
         
-        # Calculate PCR (Put OI / Call OI)
         pcr = round(t_p_oi / t_c_oi, 2) if t_c_oi > 0 else 0
+        total_activity_vol = t_c_vol + t_p_vol 
 
-        # Rule Check (Double check all 3 parameters: Vol, OI, ChangeOI)
         signal = None
-        # Bullish
+        
+        # EXACT MATHEMATICAL LOGIC
         if (t_p_vol >= multiplyNo * t_c_vol) and (t_p_oi >= multiplyNo * t_c_oi) and (t_p_chg >= multiplyNo * t_c_chg):
             signal = "BUY"
-        # Bearish
         elif (t_c_vol >= multiplyNo * t_p_vol) and (t_c_oi >= multiplyNo * t_p_oi) and (t_c_chg >= multiplyNo * t_p_chg):
             signal = "SELL"
             
@@ -108,28 +261,14 @@ def perform_scan():
             passed.append({
                 "stock": stock, "signal": signal, "pcr": pcr,
                 "c_vol": f"{t_c_vol:,}", "c_oi": f"{t_c_oi:,}", "c_chg": f"{t_c_chg:,}",
-                "p_vol": f"{t_p_vol:,}", "p_oi": f"{t_p_oi:,}", "p_chg": f"{t_p_chg:,}"
+                "p_vol": f"{t_p_vol:,}", "p_oi": f"{t_p_oi:,}", "p_chg": f"{t_p_chg:,}",
+                "raw_total_vol": total_activity_vol 
             })
         
         time.sleep(1)
-    return passed
 
-@app.route('/')
-def index():
-    global last_scan_data
-    # First time auto-run logic
-    if last_scan_data['time'] == "Never":
-        results = perform_scan()
-        last_scan_data = {"time": datetime.now().strftime("%H:%M:%S"), "passed": results}
-        
-    return render_template_string(HTML_TEMPLATE, last_scan_time=last_scan_data['time'], passed_stocks=last_scan_data['passed'])
-
-@app.route('/refresh', methods=['POST'])
-def refresh():
-    global last_scan_data
-    results = perform_scan()
-    last_scan_data = {"time": datetime.now().strftime("%H:%M:%S"), "passed": results}
-    return redirect(url_for('index'))
+    is_last = end >= len(STOCKS_TO_SCAN)
+    return jsonify({"passed": passed, "is_last": is_last})
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
