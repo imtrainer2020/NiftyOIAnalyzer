@@ -40,7 +40,7 @@ HTML_TEMPLATE = """
     <title>Stock Scanner Dashboard</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f4f4f4; }
-        .container { max-width: 1400px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .container { max-width: 1450px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .header-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #e9ecef; padding: 15px; border-radius: 6px; }
         .btn-refresh { padding: 12px 25px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; }
         .btn-refresh:disabled { background: #6c757d; cursor: not-allowed; }
@@ -59,16 +59,18 @@ HTML_TEMPLATE = """
         .strike-info { font-weight: bold; color: #0056b3; background-color: #f8f9fa; }
         .strike-info-put { font-weight: bold; color: #d35400; background-color: #f8f9fa; }
         
-        #status { font-weight: bold; color: #d35400; font-size: 16px; margin: 15px 0; }
+        #status { font-weight: bold; color: #d35400; font-size: 16px; margin: 15px 0 5px 0; }
+        #autoScanLabel { font-weight: bold; color: #6c757d; font-size: 14px; margin-bottom: 15px; }
         .loader { display: inline-block; margin-left: 10px; width: 16px; height: 16px; border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle;}
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>🎯 Stock Scanner Dashboard</h2>
+        <h2>🎯 Master Stock Scanner</h2>
         <button id="scanBtn" class="btn-refresh" onclick="startScan()">Refresh Scan Data</button>
         <div id="status">Waiting to start...</div>
+        <div id="autoScanLabel">⏱️ Timer starting...</div>
 
         <div class="header-controls">
             <h3 style="margin: 0;">Stocks Passing Rule: <span id="passCount" class="count-badge">0</span></h3>
@@ -78,10 +80,17 @@ HTML_TEMPLATE = """
         <table id="resultTable">
             <thead>
                 <tr>
-                    <th>Stock</th><th>Signal</th><th>PCR</th>
-                    <th>Call Vol</th><th>Call OI</th><th>Call Chg OI</th>
+                    <th>Stock</th>
+                    <th>LTP</th>
+                    <th>Signal</th>
+                    <th>PCR</th>
+                    <th>Call Vol</th>
+                    <th>Call OI</th>
+                    <th>Call Chg OI</th>
                     <th class="top-strikes-hdr">Top Selling Strikes<br><small>(Vol / OI / Chg)</small></th>
-                    <th>Put Vol</th><th>Put OI</th><th>Put Chg OI</th>
+                    <th>Put Chg OI</th>
+                    <th>Put OI</th>
+                    <th>Put Vol</th>
                     <th class="top-strikes-hdr">Top Buying Strikes<br><small>(Vol / OI / Chg)</small></th>
                 </tr>
             </thead>
@@ -95,6 +104,7 @@ HTML_TEMPLATE = """
         let totalStocks = {{ total_stocks }};
         let isScanning = false;
         let allPassedStocks = []; 
+        let lastScanCompleteTime = null;
 
         window.onload = function() {
             if (!sessionStorage.getItem('hasRunBefore')) {
@@ -102,8 +112,45 @@ HTML_TEMPLATE = """
                 startScan();
             } else {
                 document.getElementById('status').innerHTML = "Click <b>Refresh Scan Data</b> to start scanning.";
+                lastScanCompleteTime = Date.now(); 
             }
+            
+            setInterval(autoScanManager, 45000);
         };
+
+        function autoScanManager() {
+            if (isScanning) return; 
+
+            let now = new Date();
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            let currentTotalMinutes = hours * 60 + minutes;
+
+            // Market hours: 9:00 AM (540 mins) to 4:00 PM (960 mins)
+            let isMarketOpen = (currentTotalMinutes >= 540 && currentTotalMinutes <= 960);
+            let autoLabel = document.getElementById('autoScanLabel');
+
+            if (!isMarketOpen) {
+                autoLabel.innerHTML = "⏸️ Auto-Scan Paused (Outside Market Hours 9 AM - 4 PM)";
+                return;
+            }
+
+            if (!lastScanCompleteTime) {
+                autoLabel.innerHTML = "⏳ Waiting for the first scan to complete...";
+                return;
+            }
+
+            let timeSinceLastScanMs = now.getTime() - lastScanCompleteTime;
+            let minutesElapsed = Math.floor(timeSinceLastScanMs / 60000);
+            let minutesLeft = 30 - minutesElapsed;
+
+            if (timeSinceLastScanMs >= (30 * 60 * 1000)) { 
+                autoLabel.innerHTML = "🔄 Auto-Scan Triggered!";
+                startScan();
+            } else {
+                autoLabel.innerHTML = `⏱️ Next Auto-Scan in ~${minutesLeft} minute(s)`;
+            }
+        }
 
         async function startScan() {
             if (isScanning) return;
@@ -138,8 +185,6 @@ HTML_TEMPLATE = """
                 let data = await response.json();
                 
                 allPassedStocks = allPassedStocks.concat(data.passed);
-                
-                // Sorting array by Highest Volume LIVE during scan as well
                 allPassedStocks.sort((a, b) => Number(b.raw_total_vol) - Number(a.raw_total_vol));
                 
                 updateCount(allPassedStocks.length);
@@ -153,6 +198,9 @@ HTML_TEMPLATE = """
                     let searchInput = document.getElementById('searchInput');
                     searchInput.disabled = false;
                     searchInput.placeholder = "🔍 Search Symbol...";
+                    
+                    lastScanCompleteTime = Date.now();
+                    autoScanManager();
                     
                 } else {
                     currentBatch++;
@@ -170,7 +218,7 @@ HTML_TEMPLATE = """
             tbody.innerHTML = '';
             
             if(dataArray.length === 0 && !isScanning && currentBatch > 0) {
-                tbody.innerHTML = '<tr><td colspan="11" style="color:gray;">No stocks matched the criteria.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="12" style="color:gray;">No stocks matched the criteria.</td></tr>';
                 return;
             }
 
@@ -178,11 +226,16 @@ HTML_TEMPLATE = """
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><b>${row.stock}</b></td>
+                    <td><b>₹${row.underlying}</b></td>
                     <td class="${row.signal}">${row.signal}</td>
                     <td>${row.pcr}</td>
-                    <td>${row.c_vol}</td><td>${row.c_oi}</td><td>${row.c_chg}</td>
+                    <td>${row.c_vol}</td>
+                    <td>${row.c_oi}</td>
+                    <td>${row.c_chg}</td>
                     <td class="strike-info">${row.strike_c_vol} / ${row.strike_c_oi} / ${row.strike_c_chg}</td>
-                    <td>${row.p_vol}</td><td>${row.p_oi}</td><td>${row.p_chg}</td>
+                    <td>${row.p_chg}</td>
+                    <td>${row.p_oi}</td>
+                    <td>${row.p_vol}</td>
                     <td class="strike-info-put">${row.strike_p_vol} / ${row.strike_p_oi} / ${row.strike_p_chg}</td>
                 `;
                 tbody.appendChild(tr);
@@ -226,7 +279,7 @@ def scan_batch():
     chunk = STOCKS_TO_SCAN[start:end]
     
     passed = []
-    multiplyNo = 2.25
+    multiplyNo = 2
     today = datetime.today().date()
 
     for stock in chunk:
@@ -241,7 +294,14 @@ def scan_batch():
         status2, text2 = fetch_nse_data(f"https://www.nseindia.com/api/option-chain-v3?type=Equity&symbol={stock}&expiry={nearest_expiry}")
         if status2 != 200: continue
         
-        data = json.loads(text2).get('records', {}).get('data', [])
+        try:
+            json_response = json.loads(text2)
+            data = json_response.get('records', {}).get('data', [])
+            
+            # --- EXTRACT CURRENT STOCK PRICE (LTP) ---
+            underlying_price = json_response.get('records', {}).get('underlyingValue', 0)
+        except Exception as e:
+            continue
         
         t_c_vol = sum(r.get('CE', {}).get('totalTradedVolume', 0) for r in data)
         t_c_oi = sum(r.get('CE', {}).get('openInterest', 0) for r in data)
@@ -263,7 +323,7 @@ def scan_batch():
             signal = "SELL"
             
         if signal:
-            # --- NEW LOGIC: FIND HIGHEST STRIKE PRICES ---
+            # --- HIGHEST STRIKES LOGIC ---
             max_c_vol = max_c_oi = -1
             max_c_chg = float('-inf')
             strike_c_vol = strike_c_oi = strike_c_chg = "-"
@@ -301,12 +361,15 @@ def scan_batch():
                         max_p_chg = pe.get('changeinOpenInterest', 0)
                         strike_p_chg = strike
             
-            # Append complete data
+            # Append complete data including Underlying Price
             passed.append({
-                "stock": stock, "signal": signal, "pcr": pcr,
+                "stock": stock, 
+                "underlying": underlying_price, # <-- New Data Added Here
+                "signal": signal, 
+                "pcr": pcr,
                 "c_vol": f"{t_c_vol:,}", "c_oi": f"{t_c_oi:,}", "c_chg": f"{t_c_chg:,}",
                 "strike_c_vol": strike_c_vol, "strike_c_oi": strike_c_oi, "strike_c_chg": strike_c_chg,
-                "p_vol": f"{t_p_vol:,}", "p_oi": f"{t_p_oi:,}", "p_chg": f"{t_p_chg:,}",
+                "p_chg": f"{t_p_chg:,}", "p_oi": f"{t_p_oi:,}", "p_vol": f"{t_p_vol:,}",
                 "strike_p_vol": strike_p_vol, "strike_p_oi": strike_p_oi, "strike_p_chg": strike_p_chg,
                 "raw_total_vol": total_activity_vol 
             })
