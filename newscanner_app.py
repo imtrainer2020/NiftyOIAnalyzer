@@ -174,8 +174,8 @@ HTML_TEMPLATE = """
         }
 
         async function fetchNextBatch() {
-            let startIdx = currentBatch * 20;
-            let endIdx = Math.min(startIdx + 20, totalStocks);
+            let startIdx = currentBatch * 30;
+            let endIdx = Math.min(startIdx + 30, totalStocks);
             
             document.getElementById('status').innerHTML = `Scanning batch ${currentBatch + 1} (Stocks ${startIdx + 1} to ${endIdx} of ${totalStocks})... <div class="loader"></div>`;
             
@@ -304,7 +304,7 @@ def index():
 @app.route('/scan_batch', methods=['POST'])
 def scan_batch():
     batch_idx = request.json.get('batch', 0)
-    batch_size = 20
+    batch_size = 30
     
     start = batch_idx * batch_size
     end = start + batch_size
@@ -414,8 +414,8 @@ def scan_batch():
                         min_diff = diff
                         best_candidate = (side, stype, val)
                 
-                # Check if the shortest difference is within max 5%
-                if best_candidate and min_diff <= 5.0:
+                # Check if the shortest difference is within max 0.5%
+                if best_candidate and min_diff <= 0.5:
                     highlight_data = {
                         'side': best_candidate[0],
                         'type': best_candidate[1]
