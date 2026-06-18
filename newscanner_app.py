@@ -40,7 +40,7 @@ HTML_TEMPLATE = """
     <title>Stock Scanner Dashboard</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f4f4f4; }
-        .container { max-width: 1100px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .container { max-width: 1400px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .header-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #e9ecef; padding: 15px; border-radius: 6px; }
         .btn-refresh { padding: 12px 25px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; }
         .btn-refresh:disabled { background: #6c757d; cursor: not-allowed; }
@@ -51,9 +51,14 @@ HTML_TEMPLATE = """
         .count-badge { background: #ffc107; color: #000; padding: 6px 15px; border-radius: 20px; font-size: 18px; margin-left: 10px; font-weight: bold; border: 1px solid #e0a800; }
 
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
+        th, td { border: 1px solid #ddd; padding: 10px 8px; text-align: center; font-size: 14px; }
         th { background-color: #004085; color: white; }
+        .top-strikes-hdr { background-color: #17a2b8; color: white; }
         .BUY { color: green; font-weight: bold; } .SELL { color: red; font-weight: bold; }
+        
+        .strike-info { font-weight: bold; color: #0056b3; background-color: #f8f9fa; }
+        .strike-info-put { font-weight: bold; color: #d35400; background-color: #f8f9fa; }
+        
         #status { font-weight: bold; color: #d35400; font-size: 16px; margin: 15px 0; }
         .loader { display: inline-block; margin-left: 10px; width: 16px; height: 16px; border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle;}
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -75,7 +80,9 @@ HTML_TEMPLATE = """
                 <tr>
                     <th>Stock</th><th>Signal</th><th>PCR</th>
                     <th>Call Vol</th><th>Call OI</th><th>Call Chg OI</th>
+                    <th class="top-strikes-hdr">Top Selling Strikes<br><small>(Vol / OI / Chg)</small></th>
                     <th>Put Vol</th><th>Put OI</th><th>Put Chg OI</th>
+                    <th class="top-strikes-hdr">Top Buying Strikes<br><small>(Vol / OI / Chg)</small></th>
                 </tr>
             </thead>
             <tbody>
@@ -104,7 +111,6 @@ HTML_TEMPLATE = """
             currentBatch = 0;
             allPassedStocks = []; 
             
-            // Disable buttons and search bar at start
             document.getElementById('scanBtn').disabled = true;
             let searchInput = document.getElementById('searchInput');
             searchInput.value = "";
@@ -131,7 +137,6 @@ HTML_TEMPLATE = """
                 
                 let data = await response.json();
                 
-                // Add new data to global array
                 allPassedStocks = allPassedStocks.concat(data.passed);
                 
                 // Sorting array by Highest Volume LIVE during scan as well
@@ -141,12 +146,10 @@ HTML_TEMPLATE = """
                 renderTable(allPassedStocks); 
 
                 if (data.is_last) {
-                    // SCAN COMPLETION LOGIC
                     document.getElementById('status').innerHTML = `<span style="color:green;">✅ Scan Complete! Finished scanning ${totalStocks} stocks. Sorted by Highest Volume.</span>`;
                     document.getElementById('scanBtn').disabled = false;
                     isScanning = false;
                     
-                    // Enable Search Bar ONLY when scan is 100% finished
                     let searchInput = document.getElementById('searchInput');
                     searchInput.disabled = false;
                     searchInput.placeholder = "🔍 Search Symbol...";
@@ -167,7 +170,7 @@ HTML_TEMPLATE = """
             tbody.innerHTML = '';
             
             if(dataArray.length === 0 && !isScanning && currentBatch > 0) {
-                tbody.innerHTML = '<tr><td colspan="9" style="color:gray;">No stocks matched the 1.25x criteria.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" style="color:gray;">No stocks matched the criteria.</td></tr>';
                 return;
             }
 
@@ -178,7 +181,9 @@ HTML_TEMPLATE = """
                     <td class="${row.signal}">${row.signal}</td>
                     <td>${row.pcr}</td>
                     <td>${row.c_vol}</td><td>${row.c_oi}</td><td>${row.c_chg}</td>
+                    <td class="strike-info">${row.strike_c_vol} / ${row.strike_c_oi} / ${row.strike_c_chg}</td>
                     <td>${row.p_vol}</td><td>${row.p_oi}</td><td>${row.p_chg}</td>
+                    <td class="strike-info-put">${row.strike_p_vol} / ${row.strike_p_oi} / ${row.strike_p_chg}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -221,7 +226,7 @@ def scan_batch():
     chunk = STOCKS_TO_SCAN[start:end]
     
     passed = []
-    multiplyNo = 2
+    multiplyNo = 2.25
     today = datetime.today().date()
 
     for stock in chunk:
@@ -258,10 +263,51 @@ def scan_batch():
             signal = "SELL"
             
         if signal:
+            # --- NEW LOGIC: FIND HIGHEST STRIKE PRICES ---
+            max_c_vol = max_c_oi = -1
+            max_c_chg = float('-inf')
+            strike_c_vol = strike_c_oi = strike_c_chg = "-"
+            
+            max_p_vol = max_p_oi = -1
+            max_p_chg = float('-inf')
+            strike_p_vol = strike_p_oi = strike_p_chg = "-"
+            
+            for row in data:
+                strike = row.get('strikePrice')
+                
+                # Check Calls
+                ce = row.get('CE', {})
+                if ce:
+                    if ce.get('totalTradedVolume', 0) > max_c_vol:
+                        max_c_vol = ce.get('totalTradedVolume', 0)
+                        strike_c_vol = strike
+                    if ce.get('openInterest', 0) > max_c_oi:
+                        max_c_oi = ce.get('openInterest', 0)
+                        strike_c_oi = strike
+                    if ce.get('changeinOpenInterest', 0) > max_c_chg:
+                        max_c_chg = ce.get('changeinOpenInterest', 0)
+                        strike_c_chg = strike
+                        
+                # Check Puts
+                pe = row.get('PE', {})
+                if pe:
+                    if pe.get('totalTradedVolume', 0) > max_p_vol:
+                        max_p_vol = pe.get('totalTradedVolume', 0)
+                        strike_p_vol = strike
+                    if pe.get('openInterest', 0) > max_p_oi:
+                        max_p_oi = pe.get('openInterest', 0)
+                        strike_p_oi = strike
+                    if pe.get('changeinOpenInterest', 0) > max_p_chg:
+                        max_p_chg = pe.get('changeinOpenInterest', 0)
+                        strike_p_chg = strike
+            
+            # Append complete data
             passed.append({
                 "stock": stock, "signal": signal, "pcr": pcr,
                 "c_vol": f"{t_c_vol:,}", "c_oi": f"{t_c_oi:,}", "c_chg": f"{t_c_chg:,}",
+                "strike_c_vol": strike_c_vol, "strike_c_oi": strike_c_oi, "strike_c_chg": strike_c_chg,
                 "p_vol": f"{t_p_vol:,}", "p_oi": f"{t_p_oi:,}", "p_chg": f"{t_p_chg:,}",
+                "strike_p_vol": strike_p_vol, "strike_p_oi": strike_p_oi, "strike_p_chg": strike_p_chg,
                 "raw_total_vol": total_activity_vol 
             })
         
