@@ -1,401 +1,812 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>Master Stock Scanner</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f4f4f4; }
-        .container { max-width: 1450px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        
-        /* CORS Warning Box */
-        .cors-warning { background-color: #fff3cd; color: #856404; padding: 12px; border-radius: 5px; text-align: center; font-weight: bold; margin-bottom: 20px; border: 1px solid #ffeeba;}
-        
-        .header-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: #e9ecef; padding: 15px; border-radius: 6px; }
-        .btn-refresh { padding: 12px 25px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 5px; font-weight: bold; }
-        .btn-refresh:disabled { background: #6c757d; cursor: not-allowed; }
-        
-        .search-box { padding: 10px; font-size: 15px; width: 250px; border: 1px solid #ccc; border-radius: 5px; outline: none; }
-        .search-box:disabled { background-color: #d6d8db; cursor: not-allowed; opacity: 0.6; }
-        
-        .count-badge { background: #ffc107; color: #000; padding: 6px 15px; border-radius: 20px; font-size: 18px; margin-left: 10px; font-weight: bold; border: 1px solid #e0a800; }
+      body {
+        font-family: "Segoe UI", sans-serif;
+        padding: 20px;
+        background: #f4f4f4;
+      }
+      .container {
+        max-width: 1450px;
+        margin: auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
 
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 10px 8px; text-align: center; font-size: 14px; }
-        th { background-color: #004085; color: white; position: sticky; top: 0; z-index: 2; box-shadow: 0 2px 5px rgba(0,0,0,0.1);}
-        .top-strikes-hdr { background-color: #17a2b8; color: white; }
-        .BUY { color: green; font-weight: bold; } .SELL { color: red; font-weight: bold; }
-        
-        .strike-info { font-weight: bold; color: #0056b3; background-color: #f8f9fa; }
-        .strike-info-put { font-weight: bold; color: #d35400; background-color: #f8f9fa; }
-        
-        /* STYLES FOR HIGHLIGHTING (0.5% Rule) */
-        tr.highlight-row td { background-color: #fff8e1 !important; }
-        mark { background-color: #ffeb3b; padding: 3px 6px; border-radius: 4px; font-weight: 900; border: 1px solid #d39e00; color: #000; box-shadow: 0 0 5px rgba(255,193,7,0.5);}
-        
-        #status { font-weight: bold; color: #d35400; font-size: 16px; margin: 15px 0 5px 0; }
-        #autoScanLabel { font-weight: bold; color: #6c757d; font-size: 14px; margin-bottom: 15px; }
-        .loader { display: inline-block; margin-left: 10px; width: 16px; height: 16px; border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; vertical-align: middle;}
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      /* CORS Warning Box */
+      .cors-warning {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 12px;
+        border-radius: 5px;
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 20px;
+        border: 1px solid #ffeeba;
+      }
+
+      .header-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        background: #e9ecef;
+        padding: 15px;
+        border-radius: 6px;
+      }
+      .btn-refresh {
+        padding: 12px 25px;
+        background: #007bff;
+        color: white;
+        border: none;
+        cursor: pointer;
+        border-radius: 5px;
+        font-weight: bold;
+      }
+      .btn-refresh:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+      }
+
+      .search-box {
+        padding: 10px;
+        font-size: 15px;
+        width: 250px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        outline: none;
+      }
+      .search-box:disabled {
+        background-color: #d6d8db;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
+      .count-badge {
+        background: #ffc107;
+        color: #000;
+        padding: 6px 15px;
+        border-radius: 20px;
+        font-size: 18px;
+        margin-left: 10px;
+        font-weight: bold;
+        border: 1px solid #e0a800;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 10px 8px;
+        text-align: center;
+        font-size: 14px;
+      }
+      th {
+        background-color: #004085;
+        color: white;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      .top-strikes-hdr {
+        background-color: #17a2b8;
+        color: white;
+      }
+      .BUY {
+        color: green;
+        font-weight: bold;
+      }
+      .SELL {
+        color: red;
+        font-weight: bold;
+      }
+
+      .strike-info {
+        font-weight: bold;
+        color: #0056b3;
+        background-color: #f8f9fa;
+      }
+      .strike-info-put {
+        font-weight: bold;
+        color: #d35400;
+        background-color: #f8f9fa;
+      }
+
+      /* STYLES FOR HIGHLIGHTING (0.5% Rule) */
+      tr.highlight-row td {
+        background-color: #fff8e1 !important;
+      }
+      mark {
+        background-color: #ffeb3b;
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-weight: 900;
+        border: 1px solid #d39e00;
+        color: #000;
+        box-shadow: 0 0 5px rgba(255, 193, 7, 0.5);
+      }
+
+      #status {
+        font-weight: bold;
+        color: #d35400;
+        font-size: 16px;
+        margin: 15px 0 5px 0;
+      }
+      #autoScanLabel {
+        font-weight: bold;
+        color: #6c757d;
+        font-size: 14px;
+        margin-bottom: 15px;
+      }
+      .loader {
+        display: inline-block;
+        margin-left: 10px;
+        width: 16px;
+        height: 16px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        vertical-align: middle;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <h2>🎯 Master Stock Scanner</h2>
-        
-        <div class="cors-warning">
-            ⚠️ IMPORTANT: Pura data browser fetch karega. NSE block se bachne ke liye please "CORS Unblocker" Chrome Extension ko ON rakhein!
-        </div>
+      <h2>🎯 Master Stock Scanner</h2>
 
-        <button id="scanBtn" class="btn-refresh" onclick="startScan()">Refresh Scan Data</button>
-        <div id="status">Waiting to start...</div>
-        <div id="autoScanLabel">⏱️ Timer starting...</div>
+      <div class="cors-warning">
+        ⚠️ IMPORTANT: Pura data browser fetch karega. NSE block se bachne ke
+        liye please "CORS Unblocker" Chrome Extension ko ON rakhein!
+      </div>
 
-        <div class="header-controls">
-            <h3 style="margin: 0;">Stocks Passing Rule: <span id="passCount" class="count-badge">0</span></h3>
-            <input type="text" id="searchInput" class="search-box" placeholder="🔍 Search Symbol..." disabled onkeyup="filterTable()">
-        </div>
+      <button id="scanBtn" class="btn-refresh" onclick="startScan()">
+        Refresh Scan Data
+      </button>
+      <div id="status">Waiting to start...</div>
+      <div id="autoScanLabel">⏱️ Timer starting...</div>
 
-        <table id="resultTable">
-            <thead>
-                <tr>
-                    <th>Stock</th>
-                    <th>LTP</th>
-                    <th>Signal</th>
-                    <th>PCR</th>
-                    <th>Call Vol</th>
-                    <th>Call OI</th>
-                    <th>Call Chg OI</th>
-                    <th class="top-strikes-hdr">Top Selling Strikes<br><small>(Vol / OI / Chg)</small></th>
-                    <th>Put Chg OI</th>
-                    <th>Put OI</th>
-                    <th>Put Vol</th>
-                    <th class="top-strikes-hdr">Top Buying Strikes<br><small>(Vol / OI / Chg)</small></th>
-                </tr>
-            </thead>
-            <tbody>
-                </tbody>
-        </table>
+      <div class="header-controls">
+        <h3 style="margin: 0">
+          Stocks Passing Rule: <span id="passCount" class="count-badge">0</span>
+        </h3>
+        <input
+          type="text"
+          id="searchInput"
+          class="search-box"
+          placeholder="🔍 Search Symbol..."
+          disabled
+          onkeyup="filterTable()"
+        />
+      </div>
+
+      <table id="resultTable">
+        <thead>
+          <tr>
+            <th>Stock</th>
+            <th>LTP</th>
+            <th>Signal</th>
+            <th>PCR</th>
+            <th>Call Vol</th>
+            <th>Call OI</th>
+            <th>Call Chg OI</th>
+            <th class="top-strikes-hdr">
+              Top Selling Strikes<br /><small>(Vol / OI / Chg)</small>
+            </th>
+            <th>Put Chg OI</th>
+            <th>Put OI</th>
+            <th>Put Vol</th>
+            <th class="top-strikes-hdr">
+              Top Buying Strikes<br /><small>(Vol / OI / Chg)</small>
+            </th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
 
     <script>
-        // AAPKI STOCK LIST
-        const STOCKS_TO_SCAN = [
-            "360ONE", "ABB", "ABCAPITAL", "ADANIENSOL", "ADANIENT", "ADANIGREEN", "ADANIPORTS", "ADANIPOWER", "ALKEM", "AMBER", 
-            "AMBUJACEM", "ANGELONE", "APLAPOLLO", "APOLLOHOSP", "ASHOKLEY", "ASIANPAINT", "ASTRAL", "AUBANK", "AUROPHARMA", 
-            "AXISBANK", "BAJAJ-AUTO", "BAJAJFINSV", "BAJAJHLDNG", "BAJFINANCE", "BANDHANBNK", "BANKBARODA", "BANKINDIA", "BDL", 
-            "BEL", "BHARATFORG", "BHARTIARTL", "BHEL", "BIOCON", "BLUESTARCO", "BOSCHLTD", "BPCL", "BRITANNIA", "BSE", "CAMS", 
-            "CANBK", "CDSL", "CGPOWER", "CHOLAFIN", "CIPLA", "COALINDIA", "COCHINSHIP", "COFORGE", "COLPAL", "CONCOR", "CROMPTON", 
-            "CUMMINSIND", "DABUR", "DALBHARAT", "DELHIVERY", "DIVISLAB", "DIXON", "DLF", "DMART", "DRREDDY", "EICHERMOT", 
-            "ETERNAL", "EXIDEIND", "FEDERALBNK", "FORCEMOT", "FORTIS", "GAIL", "GLENMARK", "GMRAIRPORT", "GODFRYPHLP", "GODREJCP", 
-            "GODREJPROP", "GRASIM", "GVT&D", "HAL", "HAVELLS", "HCLTECH", "HDFCAMC", "HDFCBANK", "HDFCLIFE", "HEROMOTOCO", 
-            "HINDALCO", "HINDPETRO", "HINDUNILVR", "HINDZINC", "HYUNDAI", "ICICIBANK", "ICICIGI", "ICICIPRULI", "IDEA", 
-            "IDFCFIRSTB", "IEX", "INDHOTEL", "INDIANB", "INDIGO", "INDUSINDBK", "INDUSTOWER", "INFY", "INOXWIND", "IOC", "IREDA", 
-            "IRFC", "ITC", "JINDALSTEL", "JIOFIN", "JSWENERGY", "JSWSTEEL", "JUBLFOOD", "KALYANKJIL", "KAYNES", "KEI", "KFINTECH", 
-            "KOTAKBANK", "KPITTECH", "LAURUSLABS", "LICHSGFIN", "LICI", "LODHA", "LT", "LTF", "LTM", "LUPIN", "M&M", "MANAPPURAM", 
-            "MANKIND", "MARICO", "MARUTI", "MAXHEALTH", "MAZDOCK", "MCX", "MFSL", "MOTHERSON", "MOTILALOFS", "MPHASIS", 
-            "MUTHOOTFIN", "NAM-INDIA", "NATIONALUM", "NAUKRI", "NBCC", "NESTLEIND", "NHPC", "NMDC", "NTPC", "NUVAMA", "NYKAA", 
-            "OBEROIRLTY", "OFSS", "OIL", "ONGC", "PAGEIND", "PATANJALI", "PAYTM", "PERSISTENT", "PETRONET", "PFC", "PGEL", 
-            "PHOENIXLTD", "PIDILITIND", "PIIND", "PNB", "PNBHOUSING", "POLICYBZR", "POLYCAB", "POWERGRID", "POWERINDIA", 
-            "PREMIERENE", "PRESTIGE", "RADICO", "RBLBANK", "RECLTD", "RELIANCE", "RVNL", "SAIL", "SAMMAANCAP", "SBICARD", 
-            "SBILIFE", "SBIN", "SHREECEM", "SHRIRAMFIN", "SIEMENS", "SOLARINDS", "SONACOMS", "SRF", "SUNPHARMA", "SUPREMEIND", 
-            "SUZLON", "SWIGGY", "TATACONSUM", "TATAELXSI", "TATAPOWER", "TATASTEEL", "TCS", "TECHM", "TIINDIA", "TITAN", "TMPV", 
-            "TORNTPHARM", "TRENT", "TVSMOTOR", "ULTRACEMCO", "UNIONBANK", "UNITDSPR", "UNOMINDA", "UPL", "VBL", "VEDL", "VMM", 
-            "VOLTAS", "WAAREEENER", "WIPRO", "YESBANK", "ZYDUSLIFE"
-        ];
+      // AAPKI STOCK LIST
+      const STOCKS_TO_SCAN = [
+        "360ONE",
+        "ABB",
+        "ABCAPITAL",
+        "ADANIENSOL",
+        "ADANIENT",
+        "ADANIGREEN",
+        "ADANIPORTS",
+        "ADANIPOWER",
+        "ALKEM",
+        "AMBER",
+        "AMBUJACEM",
+        "ANGELONE",
+        "APLAPOLLO",
+        "APOLLOHOSP",
+        "ASHOKLEY",
+        "ASIANPAINT",
+        "ASTRAL",
+        "AUBANK",
+        "AUROPHARMA",
+        "AXISBANK",
+        "BAJAJ-AUTO",
+        "BAJAJFINSV",
+        "BAJAJHLDNG",
+        "BAJFINANCE",
+        "BANDHANBNK",
+        "BANKBARODA",
+        "BANKINDIA",
+        "BDL",
+        "BEL",
+        "BHARATFORG",
+        "BHARTIARTL",
+        "BHEL",
+        "BIOCON",
+        "BLUESTARCO",
+        "BOSCHLTD",
+        "BPCL",
+        "BRITANNIA",
+        "BSE",
+        "CAMS",
+        "CANBK",
+        "CDSL",
+        "CGPOWER",
+        "CHOLAFIN",
+        "CIPLA",
+        "COALINDIA",
+        "COCHINSHIP",
+        "COFORGE",
+        "COLPAL",
+        "CONCOR",
+        "CROMPTON",
+        "CUMMINSIND",
+        "DABUR",
+        "DALBHARAT",
+        "DELHIVERY",
+        "DIVISLAB",
+        "DIXON",
+        "DLF",
+        "DMART",
+        "DRREDDY",
+        "EICHERMOT",
+        "ETERNAL",
+        "EXIDEIND",
+        "FEDERALBNK",
+        "FORCEMOT",
+        "FORTIS",
+        "GAIL",
+        "GLENMARK",
+        "GMRAIRPORT",
+        "GODFRYPHLP",
+        "GODREJCP",
+        "GODREJPROP",
+        "GRASIM",
+        "GVT&D",
+        "HAL",
+        "HAVELLS",
+        "HCLTECH",
+        "HDFCAMC",
+        "HDFCBANK",
+        "HDFCLIFE",
+        "HEROMOTOCO",
+        "HINDALCO",
+        "HINDPETRO",
+        "HINDUNILVR",
+        "HINDZINC",
+        "HYUNDAI",
+        "ICICIBANK",
+        "ICICIGI",
+        "ICICIPRULI",
+        "IDEA",
+        "IDFCFIRSTB",
+        "IEX",
+        "INDHOTEL",
+        "INDIANB",
+        "INDIGO",
+        "INDUSINDBK",
+        "INDUSTOWER",
+        "INFY",
+        "INOXWIND",
+        "IOC",
+        "IREDA",
+        "IRFC",
+        "ITC",
+        "JINDALSTEL",
+        "JIOFIN",
+        "JSWENERGY",
+        "JSWSTEEL",
+        "JUBLFOOD",
+        "KALYANKJIL",
+        "KAYNES",
+        "KEI",
+        "KFINTECH",
+        "KOTAKBANK",
+        "KPITTECH",
+        "LAURUSLABS",
+        "LICHSGFIN",
+        "LICI",
+        "LODHA",
+        "LT",
+        "LTF",
+        "LTM",
+        "LUPIN",
+        "M&M",
+        "MANAPPURAM",
+        "MANKIND",
+        "MARICO",
+        "MARUTI",
+        "MAXHEALTH",
+        "MAZDOCK",
+        "MCX",
+        "MFSL",
+        "MOTHERSON",
+        "MOTILALOFS",
+        "MPHASIS",
+        "MUTHOOTFIN",
+        "NAM-INDIA",
+        "NATIONALUM",
+        "NAUKRI",
+        "NBCC",
+        "NESTLEIND",
+        "NHPC",
+        "NMDC",
+        "NTPC",
+        "NUVAMA",
+        "NYKAA",
+        "OBEROIRLTY",
+        "OFSS",
+        "OIL",
+        "ONGC",
+        "PAGEIND",
+        "PATANJALI",
+        "PAYTM",
+        "PERSISTENT",
+        "PETRONET",
+        "PFC",
+        "PGEL",
+        "PHOENIXLTD",
+        "PIDILITIND",
+        "PIIND",
+        "PNB",
+        "PNBHOUSING",
+        "POLICYBZR",
+        "POLYCAB",
+        "POWERGRID",
+        "POWERINDIA",
+        "PREMIERENE",
+        "PRESTIGE",
+        "RADICO",
+        "RBLBANK",
+        "RECLTD",
+        "RELIANCE",
+        "RVNL",
+        "SAIL",
+        "SAMMAANCAP",
+        "SBICARD",
+        "SBILIFE",
+        "SBIN",
+        "SHREECEM",
+        "SHRIRAMFIN",
+        "SIEMENS",
+        "SOLARINDS",
+        "SONACOMS",
+        "SRF",
+        "SUNPHARMA",
+        "SUPREMEIND",
+        "SUZLON",
+        "SWIGGY",
+        "TATACONSUM",
+        "TATAELXSI",
+        "TATAPOWER",
+        "TATASTEEL",
+        "TCS",
+        "TECHM",
+        "TIINDIA",
+        "TITAN",
+        "TMPV",
+        "TORNTPHARM",
+        "TRENT",
+        "TVSMOTOR",
+        "ULTRACEMCO",
+        "UNIONBANK",
+        "UNITDSPR",
+        "UNOMINDA",
+        "UPL",
+        "VBL",
+        "VEDL",
+        "VMM",
+        "VOLTAS",
+        "WAAREEENER",
+        "WIPRO",
+        "YESBANK",
+        "ZYDUSLIFE",
+      ];
 
-        const MULTIPLY_NO = 2; // Aapka 2x rule
-        const BATCH_SIZE = 30; // 30 stocks at a time to prevent blocking
+      const MULTIPLY_NO = 2; // Aapka 2x rule
+      const BATCH_SIZE = 30; // 30 stocks at a time to prevent blocking
 
-        let currentBatch = 0;
-        let totalStocks = STOCKS_TO_SCAN.length;
-        let isScanning = false;
-        let allPassedStocks = []; 
-        let lastScanCompleteTime = null;
+      let currentBatch = 0;
+      let totalStocks = STOCKS_TO_SCAN.length;
+      let isScanning = false;
+      let allPassedStocks = [];
+      let lastScanCompleteTime = null;
 
-        // NUMBER FORMATTER (e.g. 100000 -> 1,00,000)
-        const fmt = (num) => num.toLocaleString('en-IN');
-        // SLEEP FUNCTION (to act like Python's time.sleep)
-        const sleep = ms => new Promise(r => setTimeout(r, ms));
+      // NUMBER FORMATTER (e.g. 100000 -> 1,00,000)
+      const fmt = (num) => num.toLocaleString("en-IN");
+      // SLEEP FUNCTION (to act like Python's time.sleep)
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-        window.onload = function() {
-            if (!sessionStorage.getItem('hasRunBefore')) {
-                sessionStorage.setItem('hasRunBefore', 'true');
-                startScan();
-            } else {
-                document.getElementById('status').innerHTML = "Click <b>Refresh Scan Data</b> to start scanning.";
-                lastScanCompleteTime = Date.now(); 
-            }
-            // Start Auto-Scan Timer Check
-            setInterval(autoScanManager, 45000);
-        };
+      window.onload = function () {
+        if (!sessionStorage.getItem("hasRunBefore")) {
+          sessionStorage.setItem("hasRunBefore", "true");
+          startScan();
+        } else {
+          document.getElementById("status").innerHTML =
+            "Click <b>Refresh Scan Data</b> to start scanning.";
+          lastScanCompleteTime = Date.now();
+        }
+        // Start Auto-Scan Timer Check
+        setInterval(autoScanManager, 45000);
+      };
 
-        // --- TIMER LOGIC ---
-        function autoScanManager() {
-            if (isScanning) return; 
+      // --- TIMER LOGIC ---
+      function autoScanManager() {
+        if (isScanning) return;
 
-            let now = new Date();
-            let hours = now.getHours();
-            let minutes = now.getMinutes();
-            let currentTotalMinutes = hours * 60 + minutes;
+        let now = new Date();
+        let hours = now.getHours();
+        let minutes = now.getMinutes();
+        let currentTotalMinutes = hours * 60 + minutes;
 
-            // Market hours: 9:00 AM (540 mins) to 4:00 PM (960 mins)
-            let isMarketOpen = (currentTotalMinutes >= 540 && currentTotalMinutes <= 960);
-            let autoLabel = document.getElementById('autoScanLabel');
+        // Market hours: 9:00 AM (540 mins) to 4:00 PM (960 mins)
+        let isMarketOpen =
+          currentTotalMinutes >= 540 && currentTotalMinutes <= 960;
+        let autoLabel = document.getElementById("autoScanLabel");
 
-            if (!isMarketOpen) {
-                autoLabel.innerHTML = "⏸️ Auto-Scan Paused (Outside Market Hours 9 AM - 4 PM)";
-                return;
-            }
-
-            if (!lastScanCompleteTime) {
-                autoLabel.innerHTML = "⏳ Waiting for the first scan to complete...";
-                return;
-            }
-
-            let timeSinceLastScanMs = now.getTime() - lastScanCompleteTime;
-            let minutesElapsed = Math.floor(timeSinceLastScanMs / 60000);
-            let minutesLeft = 30 - minutesElapsed;
-
-            if (timeSinceLastScanMs >= (30 * 60 * 1000)) { 
-                autoLabel.innerHTML = "🔄 Auto-Scan Triggered!";
-                startScan();
-            } else {
-                autoLabel.innerHTML = `⏱️ Next Auto-Scan in ~${minutesLeft} minute(s)`;
-            }
+        if (!isMarketOpen) {
+          autoLabel.innerHTML =
+            "⏸️ Auto-Scan Paused (Outside Market Hours 9 AM - 4 PM)";
+          return;
         }
 
-        async function startScan() {
-            if (isScanning) return;
-            isScanning = true;
-            currentBatch = 0;
-            allPassedStocks = []; 
-            
-            document.getElementById('scanBtn').disabled = true;
-            let searchInput = document.getElementById('searchInput');
-            searchInput.value = "";
-            searchInput.disabled = true;
-            searchInput.placeholder = "Wait for scan to finish...";
-            
-            updateCount(0);
-            renderTable(allPassedStocks); 
-            await fetchNextBatch();
+        if (!lastScanCompleteTime) {
+          autoLabel.innerHTML = "⏳ Waiting for the first scan to complete...";
+          return;
         }
 
-        async function fetchNextBatch() {
-            let startIdx = currentBatch * BATCH_SIZE;
-            let endIdx = Math.min(startIdx + BATCH_SIZE, totalStocks);
-            let chunk = STOCKS_TO_SCAN.slice(startIdx, endIdx);
-            
-            document.getElementById('status').innerHTML = `Scanning batch ${currentBatch + 1} (Stocks ${startIdx + 1} to ${endIdx} of ${totalStocks})... <div class="loader"></div>`;
-            
+        let timeSinceLastScanMs = now.getTime() - lastScanCompleteTime;
+        let minutesElapsed = Math.floor(timeSinceLastScanMs / 60000);
+        let minutesLeft = 30 - minutesElapsed;
+
+        if (timeSinceLastScanMs >= 30 * 60 * 1000) {
+          autoLabel.innerHTML = "🔄 Auto-Scan Triggered!";
+          startScan();
+        } else {
+          autoLabel.innerHTML = `⏱️ Next Auto-Scan in ~${minutesLeft} minute(s)`;
+        }
+      }
+
+      async function startScan() {
+        if (isScanning) return;
+        isScanning = true;
+        currentBatch = 0;
+        allPassedStocks = [];
+
+        document.getElementById("scanBtn").disabled = true;
+        let searchInput = document.getElementById("searchInput");
+        searchInput.value = "";
+        searchInput.disabled = true;
+        searchInput.placeholder = "Wait for scan to finish...";
+
+        updateCount(0);
+        renderTable(allPassedStocks);
+        await fetchNextBatch();
+      }
+
+      async function fetchNextBatch() {
+        let startIdx = currentBatch * BATCH_SIZE;
+        let endIdx = Math.min(startIdx + BATCH_SIZE, totalStocks);
+        let chunk = STOCKS_TO_SCAN.slice(startIdx, endIdx);
+
+        document.getElementById("status").innerHTML =
+          `Scanning batch ${currentBatch + 1} (Stocks ${startIdx + 1} to ${endIdx} of ${totalStocks})... <div class="loader"></div>`;
+
+        try {
+          let passed = [];
+          let todayMs = Date.now();
+
+          // Loop through 30 stocks
+          for (let stock of chunk) {
             try {
-                let passed = [];
-                let todayMs = Date.now();
+              // 1. Fetch Contract Info
+              let res1 = await fetch(
+                `https://www.nseindia.com/api/option-chain-contract-info?symbol=${stock}`,
+              );
+              if (!res1.ok) continue;
+              let text1 = await res1.text();
 
-                // Loop through 30 stocks
-                for (let stock of chunk) {
-                    try {
-                        // 1. Fetch Contract Info
-                        let res1 = await fetch(`https://www.nseindia.com/api/option-chain-contract-info?symbol=${stock}`);
-                        if(!res1.ok) continue;
-                        let text1 = await res1.text();
-                        
-                        // Extract Dates
-                        let matches = text1.match(/\d{2}-[A-Za-z]{3}-\d{4}/g);
-                        if(!matches) continue;
-                        
-                        // Find Nearest Date
-                        let uniqueDates = [...new Set(matches)];
-                        let nearestDateStr = uniqueDates.reduce((closest, d) => {
-                            let currDiff = Math.abs(Date.parse(d) - todayMs);
-                            let closestDiff = Math.abs(Date.parse(closest) - todayMs);
-                            return currDiff < closestDiff ? d : closest;
-                        });
+              // Extract Dates
+              let matches = text1.match(/\d{2}-[A-Za-z]{3}-\d{4}/g);
+              if (!matches) continue;
 
-                        // 2. Fetch Actual Option Chain Data
-                        let res2 = await fetch(`https://www.nseindia.com/api/option-chain-v3?type=Equity&symbol=${stock}&expiry=${nearestDateStr}`);
-                        if(!res2.ok) continue;
-                        let json2 = await res2.json();
-                        
-                        let data = json2.records?.data || [];
-                        let underlying_price = json2.records?.underlyingValue || 0;
+              // Find Nearest Date
+              let uniqueDates = [...new Set(matches)];
+              let nearestDateStr = uniqueDates.reduce((closest, d) => {
+                let currDiff = Math.abs(Date.parse(d) - todayMs);
+                let closestDiff = Math.abs(Date.parse(closest) - todayMs);
+                return currDiff < closestDiff ? d : closest;
+              });
 
-                        let t_c_vol = 0, t_c_oi = 0, t_c_chg = 0;
-                        let t_p_vol = 0, t_p_oi = 0, t_p_chg = 0;
+              // 2. Fetch Actual Option Chain Data
+              let res2 = await fetch(
+                `https://www.nseindia.com/api/option-chain-v3?type=Equity&symbol=${stock}&expiry=${nearestDateStr}`,
+              );
+              if (!res2.ok) continue;
+              let json2 = await res2.json();
 
-                        // 3. Calculate Grand Totals & Strikes
-                        let max_c_vol = -1, max_c_oi = -1, max_c_chg = -Infinity;
-                        let strike_c_vol = "-", strike_c_oi = "-", strike_c_chg = "-";
-                        
-                        let max_p_vol = -1, max_p_oi = -1, max_p_chg = -Infinity;
-                        let strike_p_vol = "-", strike_p_oi = "-", strike_p_chg = "-";
+              let data = json2.records?.data || [];
+              let underlying_price = json2.records?.underlyingValue || 0;
 
-                        data.forEach(row => {
-                            let strike = row.strikePrice;
-                            
-                            // Process CE
-                            if (row.CE) {
-                                t_c_vol += row.CE.totalTradedVolume || 0;
-                                t_c_oi += row.CE.openInterest || 0;
-                                t_c_chg += row.CE.changeinOpenInterest || 0;
-                                
-                                if ((row.CE.totalTradedVolume || 0) > max_c_vol) { max_c_vol = row.CE.totalTradedVolume; strike_c_vol = strike; }
-                                if ((row.CE.openInterest || 0) > max_c_oi) { max_c_oi = row.CE.openInterest; strike_c_oi = strike; }
-                                if ((row.CE.changeinOpenInterest || 0) > max_c_chg) { max_c_chg = row.CE.changeinOpenInterest; strike_c_chg = strike; }
-                            }
-                            
-                            // Process PE
-                            if (row.PE) {
-                                t_p_vol += row.PE.totalTradedVolume || 0;
-                                t_p_oi += row.PE.openInterest || 0;
-                                t_p_chg += row.PE.changeinOpenInterest || 0;
-                                
-                                if ((row.PE.totalTradedVolume || 0) > max_p_vol) { max_p_vol = row.PE.totalTradedVolume; strike_p_vol = strike; }
-                                if ((row.PE.openInterest || 0) > max_p_oi) { max_p_oi = row.PE.openInterest; strike_p_oi = strike; }
-                                if ((row.PE.changeinOpenInterest || 0) > max_p_chg) { max_p_chg = row.PE.changeinOpenInterest; strike_p_chg = strike; }
-                            }
-                        });
+              let t_c_vol = 0,
+                t_c_oi = 0,
+                t_c_chg = 0;
+              let t_p_vol = 0,
+                t_p_oi = 0,
+                t_p_chg = 0;
 
-                        let pcr = t_c_oi > 0 ? (t_p_oi / t_c_oi).toFixed(2) : 0;
-                        let total_activity_vol = t_c_vol + t_p_vol;
-                        let signal = null;
+              // 3. Calculate Grand Totals & Strikes
+              let max_c_vol = -1,
+                max_c_oi = -1,
+                max_c_chg = -Infinity;
+              let strike_c_vol = "-",
+                strike_c_oi = "-",
+                strike_c_chg = "-";
 
-                        // 4. Exact Mathematical Logic (2x Rule)
-                        if (t_p_vol >= MULTIPLY_NO * t_c_vol && t_p_oi >= MULTIPLY_NO * t_c_oi) signal = "BUY";
-                        else if (t_c_vol >= MULTIPLY_NO * t_p_vol && t_c_oi >= MULTIPLY_NO * t_p_oi) signal = "SELL";
+              let max_p_vol = -1,
+                max_p_oi = -1,
+                max_p_chg = -Infinity;
+              let strike_p_vol = "-",
+                strike_p_oi = "-",
+                strike_p_chg = "-";
 
-                        if (signal) {
-                            // 5. HIGHLIGHT LOGIC: Highest Call Strike vs Lowest Put Strike (0.5% diff check)
-                            let highlight_data = null;
-                            if (underlying_price > 0) {
-                                let c_cands = [];
-                                if(strike_c_vol !== "-") c_cands.push({side: 'C', type: 'vol', val: strike_c_vol});
-                                if(strike_c_oi !== "-") c_cands.push({side: 'C', type: 'oi', val: strike_c_oi});
-                                if(strike_c_chg !== "-") c_cands.push({side: 'C', type: 'chg', val: strike_c_chg});
+              data.forEach((row) => {
+                let strike = row.strikePrice;
 
-                                let p_cands = [];
-                                if(strike_p_vol !== "-") p_cands.push({side: 'P', type: 'vol', val: strike_p_vol});
-                                if(strike_p_oi !== "-") p_cands.push({side: 'P', type: 'oi', val: strike_p_oi});
-                                if(strike_p_chg !== "-") p_cands.push({side: 'P', type: 'chg', val: strike_p_chg});
+                // Process CE
+                if (row.CE) {
+                  t_c_vol += row.CE.totalTradedVolume || 0;
+                  t_c_oi += row.CE.openInterest || 0;
+                  t_c_chg += row.CE.changeinOpenInterest || 0;
 
-                                let final_candidates = [];
-                                // Call mein se Sabse Bada (Highest)
-                                if (c_cands.length > 0) {
-                                    let best_c = c_cands.reduce((max, obj) => obj.val > max.val ? obj : max);
-                                    final_candidates.push(best_c);
-                                }
-                                // Put mein se Sabse Chhota (Lowest)
-                                if (p_cands.length > 0) {
-                                    let best_p = p_cands.reduce((min, obj) => obj.val < min.val ? obj : min);
-                                    final_candidates.push(best_p);
-                                }
-
-                                let min_diff = Infinity;
-                                let best_match = null;
-
-                                // Check difference from LTP
-                                final_candidates.forEach(cand => {
-                                    let diff = Math.abs(cand.val - underlying_price) / underlying_price * 100;
-                                    if (diff < min_diff) {
-                                        min_diff = diff;
-                                        best_match = cand;
-                                    }
-                                });
-
-                                // 0.5% Condition
-                                if (best_match && min_diff <= 0.5) {
-                                    highlight_data = { side: best_match.side, type: best_match.type };
-                                }
-                            }
-
-                            passed.push({
-                                stock: stock, 
-                                underlying: underlying_price, 
-                                signal: signal, 
-                                pcr: pcr,
-                                c_vol: t_c_vol, c_oi: t_c_oi, c_chg: t_c_chg,
-                                strike_c_vol: strike_c_vol, strike_c_oi: strike_c_oi, strike_c_chg: strike_c_chg,
-                                p_chg: t_p_chg, p_oi: t_p_oi, p_vol: t_p_vol,
-                                strike_p_vol: strike_p_vol, strike_p_oi: strike_p_oi, strike_p_chg: strike_p_chg,
-                                raw_total_vol: total_activity_vol,
-                                highlight_data: highlight_data 
-                            });
-                        }
-                    } catch(err) {} 
-                    
-                    // 1 Second delay so NSE doesn't block
-                    await sleep(1000); 
+                  if ((row.CE.totalTradedVolume || 0) > max_c_vol) {
+                    max_c_vol = row.CE.totalTradedVolume;
+                    strike_c_vol = strike;
+                  }
+                  if ((row.CE.openInterest || 0) > max_c_oi) {
+                    max_c_oi = row.CE.openInterest;
+                    strike_c_oi = strike;
+                  }
+                  if ((row.CE.changeinOpenInterest || 0) > max_c_chg) {
+                    max_c_chg = row.CE.changeinOpenInterest;
+                    strike_c_chg = strike;
+                  }
                 }
 
-                allPassedStocks = allPassedStocks.concat(passed);
-                allPassedStocks.sort((a, b) => b.raw_total_vol - a.raw_total_vol);
-                
-                updateCount(allPassedStocks.length);
-                renderTable(allPassedStocks); 
+                // Process PE
+                if (row.PE) {
+                  t_p_vol += row.PE.totalTradedVolume || 0;
+                  t_p_oi += row.PE.openInterest || 0;
+                  t_p_chg += row.PE.changeinOpenInterest || 0;
 
-                let is_last = endIdx >= totalStocks;
-                
-                if (is_last) {
-                    document.getElementById('status').innerHTML = `<span style="color:green;">✅ Scan Complete! Finished scanning ${totalStocks} stocks. Sorted by Highest Volume.</span>`;
-                    document.getElementById('scanBtn').disabled = false;
-                    isScanning = false;
-                    
-                    let searchInput = document.getElementById('searchInput');
-                    searchInput.disabled = false;
-                    searchInput.placeholder = "🔍 Search Symbol...";
-                    
-                    lastScanCompleteTime = Date.now();
-                    autoScanManager();
-                } else {
-                    currentBatch++;
-                    fetchNextBatch(); 
+                  if ((row.PE.totalTradedVolume || 0) > max_p_vol) {
+                    max_p_vol = row.PE.totalTradedVolume;
+                    strike_p_vol = strike;
+                  }
+                  if ((row.PE.openInterest || 0) > max_p_oi) {
+                    max_p_oi = row.PE.openInterest;
+                    strike_p_oi = strike;
+                  }
+                  if ((row.PE.changeinOpenInterest || 0) > max_p_chg) {
+                    max_p_chg = row.PE.changeinOpenInterest;
+                    strike_p_chg = strike;
+                  }
                 }
-            } catch (error) {
-                document.getElementById('status').innerHTML = `<span style="color:red;">❌ Network Error occurred. Scan paused.</span>`;
-                document.getElementById('scanBtn').disabled = false;
-                isScanning = false;
-            }
+              });
+
+              let pcr = t_c_oi > 0 ? (t_p_oi / t_c_oi).toFixed(2) : 0;
+              let total_activity_vol = t_c_vol + t_p_vol;
+              let signal = null;
+
+              // 4. Exact Mathematical Logic (2x Rule)
+              if (
+                t_p_vol >= MULTIPLY_NO * t_c_vol &&
+                t_p_oi >= MULTIPLY_NO * t_c_oi
+              )
+                signal = "BUY";
+              else if (
+                t_c_vol >= MULTIPLY_NO * t_p_vol &&
+                t_c_oi >= MULTIPLY_NO * t_p_oi
+              )
+                signal = "SELL";
+
+              if (signal) {
+                // 5. HIGHLIGHT LOGIC: Highest Call Strike vs Lowest Put Strike (0.5% diff check)
+                let highlight_data = null;
+                if (underlying_price > 0) {
+                  let c_cands = [];
+                  if (strike_c_vol !== "-")
+                    c_cands.push({ side: "C", type: "vol", val: strike_c_vol });
+                  if (strike_c_oi !== "-")
+                    c_cands.push({ side: "C", type: "oi", val: strike_c_oi });
+                  if (strike_c_chg !== "-")
+                    c_cands.push({ side: "C", type: "chg", val: strike_c_chg });
+
+                  let p_cands = [];
+                  if (strike_p_vol !== "-")
+                    p_cands.push({ side: "P", type: "vol", val: strike_p_vol });
+                  if (strike_p_oi !== "-")
+                    p_cands.push({ side: "P", type: "oi", val: strike_p_oi });
+                  if (strike_p_chg !== "-")
+                    p_cands.push({ side: "P", type: "chg", val: strike_p_chg });
+
+                  let final_candidates = [];
+                  // Call mein se Sabse Bada (Highest)
+                  if (c_cands.length > 0) {
+                    let best_c = c_cands.reduce((max, obj) =>
+                      obj.val > max.val ? obj : max,
+                    );
+                    final_candidates.push(best_c);
+                  }
+                  // Put mein se Sabse Chhota (Lowest)
+                  if (p_cands.length > 0) {
+                    let best_p = p_cands.reduce((min, obj) =>
+                      obj.val < min.val ? obj : min,
+                    );
+                    final_candidates.push(best_p);
+                  }
+
+                  let min_diff = Infinity;
+                  let best_match = null;
+
+                  // Check difference from LTP
+                  final_candidates.forEach((cand) => {
+                    let diff =
+                      (Math.abs(cand.val - underlying_price) /
+                        underlying_price) *
+                      100;
+                    if (diff < min_diff) {
+                      min_diff = diff;
+                      best_match = cand;
+                    }
+                  });
+
+                  // 0.5% Condition
+                  if (best_match && min_diff <= 0.5) {
+                    highlight_data = {
+                      side: best_match.side,
+                      type: best_match.type,
+                    };
+                  }
+                }
+
+                passed.push({
+                  stock: stock,
+                  underlying: underlying_price,
+                  signal: signal,
+                  pcr: pcr,
+                  c_vol: t_c_vol,
+                  c_oi: t_c_oi,
+                  c_chg: t_c_chg,
+                  strike_c_vol: strike_c_vol,
+                  strike_c_oi: strike_c_oi,
+                  strike_c_chg: strike_c_chg,
+                  p_chg: t_p_chg,
+                  p_oi: t_p_oi,
+                  p_vol: t_p_vol,
+                  strike_p_vol: strike_p_vol,
+                  strike_p_oi: strike_p_oi,
+                  strike_p_chg: strike_p_chg,
+                  raw_total_vol: total_activity_vol,
+                  highlight_data: highlight_data,
+                });
+              }
+            } catch (err) {}
+
+            // 1 Second delay so NSE doesn't block
+            await sleep(1000);
+          }
+
+          allPassedStocks = allPassedStocks.concat(passed);
+          allPassedStocks.sort((a, b) => b.raw_total_vol - a.raw_total_vol);
+
+          updateCount(allPassedStocks.length);
+          renderTable(allPassedStocks);
+
+          let is_last = endIdx >= totalStocks;
+
+          if (is_last) {
+            document.getElementById("status").innerHTML =
+              `<span style="color:green;">✅ Scan Complete! Finished scanning ${totalStocks} stocks. Sorted by Highest Volume.</span>`;
+            document.getElementById("scanBtn").disabled = false;
+            isScanning = false;
+
+            let searchInput = document.getElementById("searchInput");
+            searchInput.disabled = false;
+            searchInput.placeholder = "🔍 Search Symbol...";
+
+            lastScanCompleteTime = Date.now();
+            autoScanManager();
+          } else {
+            currentBatch++;
+            fetchNextBatch();
+          }
+        } catch (error) {
+          document.getElementById("status").innerHTML =
+            `<span style="color:red;">❌ Network Error occurred. Scan paused.</span>`;
+          document.getElementById("scanBtn").disabled = false;
+          isScanning = false;
+        }
+      }
+
+      // DRAW HTML TABLE
+      function renderTable(dataArray) {
+        let tbody = document
+          .getElementById("resultTable")
+          .querySelector("tbody");
+        tbody.innerHTML = "";
+
+        if (dataArray.length === 0 && !isScanning && currentBatch > 0) {
+          tbody.innerHTML =
+            '<tr><td colspan="12" style="color:gray;">No stocks matched the criteria.</td></tr>';
+          return;
         }
 
-        // DRAW HTML TABLE
-        function renderTable(dataArray) {
-            let tbody = document.getElementById('resultTable').querySelector('tbody');
-            tbody.innerHTML = '';
-            
-            if(dataArray.length === 0 && !isScanning && currentBatch > 0) {
-                tbody.innerHTML = '<tr><td colspan="12" style="color:gray;">No stocks matched the criteria.</td></tr>';
-                return;
-            }
+        dataArray.forEach((row) => {
+          let hl = row.highlight_data;
+          let rowClass = hl ? "highlight-row" : "";
 
-            dataArray.forEach(row => {
-                let hl = row.highlight_data;
-                let rowClass = hl ? "highlight-row" : "";
-                
-                let c_vol = row.strike_c_vol;
-                let c_oi = row.strike_c_oi;
-                let c_chg = row.strike_c_chg;
-                
-                if (hl && hl.side === 'C') {
-                    if (hl.type === 'vol') c_vol = `<mark>${c_vol}</mark>`;
-                    else if (hl.type === 'oi') c_oi = `<mark>${c_oi}</mark>`;
-                    else if (hl.type === 'chg') c_chg = `<mark>${c_chg}</mark>`;
-                }
-                let call_strikes = `${c_vol} / ${c_oi} / ${c_chg}`;
-                
-                let p_vol = row.strike_p_vol;
-                let p_oi = row.strike_p_oi;
-                let p_chg = row.strike_p_chg;
-                
-                if (hl && hl.side === 'P') {
-                    if (hl.type === 'vol') p_vol = `<mark>${p_vol}</mark>`;
-                    else if (hl.type === 'oi') p_oi = `<mark>${p_oi}</mark>`;
-                    else if (hl.type === 'chg') p_chg = `<mark>${p_chg}</mark>`;
-                }
-                let put_strikes = `${p_vol} / ${p_oi} / ${p_chg}`;
+          let c_vol = row.strike_c_vol;
+          let c_oi = row.strike_c_oi;
+          let c_chg = row.strike_c_chg;
 
-                let tr = document.createElement('tr');
-                tr.className = rowClass;
-                tr.innerHTML = `
+          if (hl && hl.side === "C") {
+            if (hl.type === "vol") c_vol = `<mark>${c_vol}</mark>`;
+            else if (hl.type === "oi") c_oi = `<mark>${c_oi}</mark>`;
+            else if (hl.type === "chg") c_chg = `<mark>${c_chg}</mark>`;
+          }
+          let call_strikes = `${c_vol} / ${c_oi} / ${c_chg}`;
+
+          let p_vol = row.strike_p_vol;
+          let p_oi = row.strike_p_oi;
+          let p_chg = row.strike_p_chg;
+
+          if (hl && hl.side === "P") {
+            if (hl.type === "vol") p_vol = `<mark>${p_vol}</mark>`;
+            else if (hl.type === "oi") p_oi = `<mark>${p_oi}</mark>`;
+            else if (hl.type === "chg") p_chg = `<mark>${p_chg}</mark>`;
+          }
+          let put_strikes = `${p_vol} / ${p_oi} / ${p_chg}`;
+
+          let tr = document.createElement("tr");
+          tr.className = rowClass;
+          tr.innerHTML = `
                     <td><b>${row.stock}</b></td>
                     <td><b>₹${row.underlying}</b></td>
                     <td class="${row.signal}">${row.signal}</td>
@@ -409,21 +820,26 @@
                     <td>${fmt(row.p_vol)}</td>
                     <td class="strike-info-put">${put_strikes}</td>
                 `;
-                tbody.appendChild(tr);
-            });
-        }
+          tbody.appendChild(tr);
+        });
+      }
 
-        // SEARCH BAR
-        function filterTable() {
-            let query = document.getElementById('searchInput').value.toUpperCase().trim();
-            let filtered = allPassedStocks.filter(row => row.stock.includes(query));
-            renderTable(filtered);
-            updateCount(filtered.length);
-        }
+      // SEARCH BAR
+      function filterTable() {
+        let query = document
+          .getElementById("searchInput")
+          .value.toUpperCase()
+          .trim();
+        let filtered = allPassedStocks.filter((row) =>
+          row.stock.includes(query),
+        );
+        renderTable(filtered);
+        updateCount(filtered.length);
+      }
 
-        function updateCount(count) {
-            document.getElementById('passCount').innerText = count;
-        }
+      function updateCount(count) {
+        document.getElementById("passCount").innerText = count;
+      }
     </script>
-</body>
+  </body>
 </html>
