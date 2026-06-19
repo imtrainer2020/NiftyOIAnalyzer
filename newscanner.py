@@ -347,9 +347,9 @@ def scan_batch():
         signal = None
         
         # EXACT MATHEMATICAL LOGIC
-        if (t_p_vol >= multiplyNo * t_c_vol) and (t_p_oi >= multiplyNo * t_c_oi) and (t_p_chg >= multiplyNo * t_c_chg):
+        if (t_p_vol >= multiplyNo * t_c_vol) and (t_p_oi >= multiplyNo * t_c_oi): #and (t_p_chg >= multiplyNo * t_c_chg):
             signal = "BUY"
-        elif (t_c_vol >= multiplyNo * t_p_vol) and (t_c_oi >= multiplyNo * t_p_oi) and (t_c_chg >= multiplyNo * t_p_chg):
+        elif (t_c_vol >= multiplyNo * t_p_vol) and (t_c_oi >= multiplyNo * t_p_oi): #and (t_c_chg >= multiplyNo * t_p_chg):
             signal = "SELL"
             
         if signal:
