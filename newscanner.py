@@ -8,27 +8,27 @@ import time
 app = Flask(__name__)
 
 STOCKS_TO_SCAN = [
-  "360ONE", "ABB", "ABCAPITAL", "ADANIENSOL", "ADANIENT", "ADANIGREEN", "ADANIPORTS", "ADANIPOWER", "ALKEM", "AMBER", 
-  "AMBUJACEM", "ANGELONE", "APLAPOLLO", "APOLLOHOSP", "ASHOKLEY", "ASIANPAINT", "ASTRAL", "AUBANK", "AUROPHARMA", 
-  "AXISBANK", "BAJAJ-AUTO", "BAJAJFINSV", "BAJAJHLDNG", "BAJFINANCE", "BANDHANBNK", "BANKBARODA", "BANKINDIA", "BDL", 
-  "BEL", "BHARATFORG", "BHARTIARTL", "BHEL", "BIOCON", "BLUESTARCO", "BOSCHLTD", "BPCL", "BRITANNIA", "BSE", "CAMS", 
-  "CANBK", "CDSL", "CGPOWER", "CHOLAFIN", "CIPLA", "COALINDIA", "COCHINSHIP", "COFORGE", "COLPAL", "CONCOR", "CROMPTON", 
-  "CUMMINSIND", "DABUR", "DALBHARAT", "DELHIVERY", "DIVISLAB", "DIXON", "DLF", "DMART", "DRREDDY", "EICHERMOT", 
-  "ETERNAL", "EXIDEIND", "FEDERALBNK", "FORCEMOT", "FORTIS", "GAIL", "GLENMARK", "GMRAIRPORT", "GODFRYPHLP", "GODREJCP", 
-  "GODREJPROP", "GRASIM", "GVT&D", "HAL", "HAVELLS", "HCLTECH", "HDFCAMC", "HDFCBANK", "HDFCLIFE", "HEROMOTOCO", 
-  "HINDALCO", "HINDPETRO", "HINDUNILVR", "HINDZINC", "HYUNDAI", "ICICIBANK", "ICICIGI", "ICICIPRULI", "IDEA", 
-  "IDFCFIRSTB", "IEX", "INDHOTEL", "INDIANB", "INDIGO", "INDUSINDBK", "INDUSTOWER", "INFY", "INOXWIND", "IOC", "IREDA", 
-  "IRFC", "ITC", "JINDALSTEL", "JIOFIN", "JSWENERGY", "JSWSTEEL", "JUBLFOOD", "KALYANKJIL", "KAYNES", "KEI", "KFINTECH", 
-  "KOTAKBANK", "KPITTECH", "LAURUSLABS", "LICHSGFIN", "LICI", "LODHA", "LT", "LTF", "LTM", "LUPIN", "M&M", "MANAPPURAM", 
-  "MANKIND", "MARICO", "MARUTI", "MAXHEALTH", "MAZDOCK", "MCX", "MFSL", "MOTHERSON", "MOTILALOFS", "MPHASIS", 
-  "MUTHOOTFIN", "NAM-INDIA", "NATIONALUM", "NAUKRI", "NBCC", "NESTLEIND", "NHPC", "NMDC", "NTPC", "NUVAMA", "NYKAA", 
-  "OBEROIRLTY", "OFSS", "OIL", "ONGC", "PAGEIND", "PATANJALI", "PAYTM", "PERSISTENT", "PETRONET", "PFC", "PGEL", 
-  "PHOENIXLTD", "PIDILITIND", "PIIND", "PNB", "PNBHOUSING", "POLICYBZR", "POLYCAB", "POWERGRID", "POWERINDIA", 
-  "PREMIERENE", "PRESTIGE", "RADICO", "RBLBANK", "RECLTD", "RELIANCE", "RVNL", "SAIL", "SAMMAANCAP", "SBICARD", 
-  "SBILIFE", "SBIN", "SHREECEM", "SHRIRAMFIN", "SIEMENS", "SOLARINDS", "SONACOMS", "SRF", "SUNPHARMA", "SUPREMEIND", 
-  "SUZLON", "SWIGGY", "TATACONSUM", "TATAELXSI", "TATAPOWER", "TATASTEEL", "TCS", "TECHM", "TIINDIA", "TITAN", "TMPV", 
-  "TORNTPHARM", "TRENT", "TVSMOTOR", "ULTRACEMCO", "UNIONBANK", "UNITDSPR", "UNOMINDA", "UPL", "VBL", "VEDL", "VMM", 
-  "VOLTAS", "WAAREEENER", "WIPRO", "YESBANK", "ZYDUSLIFE"
+    "360ONE", "ABB", "ABCAPITAL", "ADANIENSOL", "ADANIENT", "ADANIGREEN", "ADANIPORTS", "ADANIPOWER", "ALKEM", "AMBER", 
+    "AMBUJACEM", "ANGELONE", "APLAPOLLO", "APOLLOHOSP", "ASHOKLEY", "ASIANPAINT", "ASTRAL", "AUBANK", "AUROPHARMA", 
+    "AXISBANK", "BAJAJ-AUTO", "BAJAJFINSV", "BAJAJHLDNG", "BAJFINANCE", "BANDHANBNK", "BANKBARODA", "BANKINDIA", "BDL", 
+    "BEL", "BHARATFORG", "BHARTIARTL", "BHEL", "BIOCON", "BLUESTARCO", "BOSCHLTD", "BPCL", "BRITANNIA", "BSE", "CAMS", 
+    "CANBK", "CDSL", "CGPOWER", "CHOLAFIN", "CIPLA", "COALINDIA", "COCHINSHIP", "COFORGE", "COLPAL", "CONCOR", "CROMPTON", 
+    "CUMMINSIND", "DABUR", "DALBHARAT", "DELHIVERY", "DIVISLAB", "DIXON", "DLF", "DMART", "DRREDDY", "EICHERMOT", 
+    "ETERNAL", "EXIDEIND", "FEDERALBNK", "FORCEMOT", "FORTIS", "GAIL", "GLENMARK", "GMRAIRPORT", "GODFRYPHLP", "GODREJCP", 
+    "GODREJPROP", "GRASIM", "GVT&D", "HAL", "HAVELLS", "HCLTECH", "HDFCAMC", "HDFCBANK", "HDFCLIFE", "HEROMOTOCO", 
+    "HINDALCO", "HINDPETRO", "HINDUNILVR", "HINDZINC", "HYUNDAI", "ICICIBANK", "ICICIGI", "ICICIPRULI", "IDEA", 
+    "IDFCFIRSTB", "IEX", "INDHOTEL", "INDIANB", "INDIGO", "INDUSINDBK", "INDUSTOWER", "INFY", "INOXWIND", "IOC", "IREDA", 
+    "IRFC", "ITC", "JINDALSTEL", "JIOFIN", "JSWENERGY", "JSWSTEEL", "JUBLFOOD", "KALYANKJIL", "KAYNES", "KEI", "KFINTECH", 
+    "KOTAKBANK", "KPITTECH", "LAURUSLABS", "LICHSGFIN", "LICI", "LODHA", "LT", "LTF", "LTM", "LUPIN", "M&M", "MANAPPURAM", 
+    "MANKIND", "MARICO", "MARUTI", "MAXHEALTH", "MAZDOCK", "MCX", "MFSL", "MOTHERSON", "MOTILALOFS", "MPHASIS", 
+    "MUTHOOTFIN", "NAM-INDIA", "NATIONALUM", "NAUKRI", "NBCC", "NESTLEIND", "NHPC", "NMDC", "NTPC", "NUVAMA", "NYKAA", 
+    "OBEROIRLTY", "OFSS", "OIL", "ONGC", "PAGEIND", "PATANJALI", "PAYTM", "PERSISTENT", "PETRONET", "PFC", "PGEL", 
+    "PHOENIXLTD", "PIDILITIND", "PIIND", "PNB", "PNBHOUSING", "POLICYBZR", "POLYCAB", "POWERGRID", "POWERINDIA", 
+    "PREMIERENE", "PRESTIGE", "RADICO", "RBLBANK", "RECLTD", "RELIANCE", "RVNL", "SAIL", "SAMMAANCAP", "SBICARD", 
+    "SBILIFE", "SBIN", "SHREECEM", "SHRIRAMFIN", "SIEMENS", "SOLARINDS", "SONACOMS", "SRF", "SUNPHARMA", "SUPREMEIND", 
+    "SUZLON", "SWIGGY", "TATACONSUM", "TATAELXSI", "TATAPOWER", "TATASTEEL", "TCS", "TECHM", "TIINDIA", "TITAN", "TMPV", 
+    "TORNTPHARM", "TRENT", "TVSMOTOR", "ULTRACEMCO", "UNIONBANK", "UNITDSPR", "UNOMINDA", "UPL", "VBL", "VEDL", "VMM", 
+    "VOLTAS", "WAAREEENER", "WIPRO", "YESBANK", "ZYDUSLIFE"
 ]
 session = requests.Session(impersonate="chrome120")
 
@@ -391,37 +391,55 @@ def scan_batch():
                         max_p_chg = pe.get('changeinOpenInterest', 0)
                         strike_p_chg = strike
             
-            # --- NEW: 5% PROXIMITY HIGHLIGHT LOGIC ---
+            # --- NEW: ADVANCED 0.5% HIGHLIGHT LOGIC ---
             highlight_data = None
             if underlying_price > 0:
-                # Create a list of available valid strikes
-                candidates = []
-                if strike_c_vol != "-": candidates.append(('C', 'vol', strike_c_vol))
-                if strike_c_oi != "-": candidates.append(('C', 'oi', strike_c_oi))
-                if strike_c_chg != "-": candidates.append(('C', 'chg', strike_c_chg))
-                if strike_p_vol != "-": candidates.append(('P', 'vol', strike_p_vol))
-                if strike_p_oi != "-": candidates.append(('P', 'oi', strike_p_oi))
-                if strike_p_chg != "-": candidates.append(('P', 'chg', strike_p_chg))
+                
+                # STEP 1: Call side ke valid (Number wale) strikes nikalo
+                c_cands = []
+                if strike_c_vol != "-": c_cands.append(('C', 'vol', strike_c_vol))
+                if strike_c_oi != "-": c_cands.append(('C', 'oi', strike_c_oi))
+                if strike_c_chg != "-": c_cands.append(('C', 'chg', strike_c_chg))
+                
+                # STEP 2: Put side ke valid strikes nikalo
+                p_cands = []
+                if strike_p_vol != "-": p_cands.append(('P', 'vol', strike_p_vol))
+                if strike_p_oi != "-": p_cands.append(('P', 'oi', strike_p_oi))
+                if strike_p_chg != "-": p_cands.append(('P', 'chg', strike_p_chg))
+                
+                final_candidates = []
+                
+                # STEP 3: Call mein se sabse bada (Highest) strike price chuno
+                if c_cands:
+                    # 'key=lambda x: x[2]' ka matlab hai array ke teesre item (jo ki price hai) usko check karo
+                    best_call = max(c_cands, key=lambda x: x[2]) 
+                    final_candidates.append(best_call)
+                    
+                # STEP 4: Put mein se sabse chhota (Lowest) strike price chuno
+                if p_cands:
+                    best_put = min(p_cands, key=lambda x: x[2])
+                    final_candidates.append(best_put)
                 
                 min_diff = float('inf')
-                best_candidate = None
+                best_match = None
                 
-                # Find the one strike with the absolute minimum difference
-                for side, stype, val in candidates:
+                # STEP 5: Ab sirf in 2 winners (1 Call, 1 Put) ko LTP se compare karo
+                for side, stype, val in final_candidates:
+                    # Percentage difference ka formula
                     diff = abs(val - underlying_price) / underlying_price * 100
-                    # Ensures we pick strictly "only 1" even if there are ties
+                    
                     if diff < min_diff:
                         min_diff = diff
-                        best_candidate = (side, stype, val)
+                        best_match = (side, stype, val)
                 
-                # Check if the shortest difference is within max 0.5%
-                if best_candidate and min_diff <= 0.5:
+                # STEP 6: Agar difference 0.5% se kam hai, toh highlight ke liye save kar lo
+                if best_match and min_diff <= 0.5:
                     highlight_data = {
-                        'side': best_candidate[0],
-                        'type': best_candidate[1]
+                        'side': best_match[0],
+                        'type': best_match[1]
                     }
 
-            # Append complete data including Highlight info
+            # Append complete data
             passed.append({
                 "stock": stock, 
                 "underlying": underlying_price, 
@@ -432,7 +450,7 @@ def scan_batch():
                 "p_chg": f"{t_p_chg:,}", "p_oi": f"{t_p_oi:,}", "p_vol": f"{t_p_vol:,}",
                 "strike_p_vol": strike_p_vol, "strike_p_oi": strike_p_oi, "strike_p_chg": strike_p_chg,
                 "raw_total_vol": total_activity_vol,
-                "highlight_data": highlight_data # <-- Passes highlight info to HTML
+                "highlight_data": highlight_data 
             })
         
         time.sleep(1)
